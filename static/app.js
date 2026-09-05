@@ -19,6 +19,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const exportFormat = document.getElementById('exportFormat');
   const copyButton = document.getElementById('copyButton');
   const exportButton = document.getElementById('exportButton');
+  const inlineVerseNumbersRow = document.getElementById('inlineVerseNumbersRow');
+  const inlineVerseNumbersToggle = document.getElementById('showInlineVerseNumbers');
+  const granularitySelect = document.getElementById('granularity');
   let lastResultsData = null;
   let readingNavigationState = {
     entries: [],
@@ -282,9 +285,21 @@ document.addEventListener('DOMContentLoaded', () => {
     applyTheme(storedTheme || 'light');
   }
 
+  function updateInlineVerseNumberVisibility() {
+    const isPassageMode = (granularitySelect?.value || 'Verse') === 'Passage';
+    if (inlineVerseNumbersRow) {
+      inlineVerseNumbersRow.hidden = !isPassageMode;
+    }
+    if (inlineVerseNumbersToggle && !isPassageMode) {
+      inlineVerseNumbersToggle.checked = false;
+    }
+  }
+
   function renderReadingParagraphs(item) {
     const container = document.createElement('div');
-    container.className = 'reading-paragraphs';
+    const isPassageMode = (granularitySelect?.value || 'Verse') === 'Passage';
+    const showInlineVerseNumbers = isPassageMode && Boolean(inlineVerseNumbersToggle?.checked);
+    container.className = `reading-paragraphs${isPassageMode ? ' passage-mode' : ''}`;
 
     const paragraphs = Array.isArray(item?.paragraphs) ? item.paragraphs : [];
     if (!paragraphs.length) {
@@ -296,6 +311,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     paragraphs.forEach((paragraph) => {
       const paragraphEl = document.createElement('p');
+      if (isPassageMode) {
+        paragraphEl.classList.add('passage-mode');
+      }
+
       if (!Array.isArray(paragraph)) {
         paragraphEl.textContent = String(paragraph ?? '');
         container.appendChild(paragraphEl);
@@ -304,11 +323,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
       paragraph.forEach((verse) => {
         const verseText = String(verse?.text ?? '');
-        if (verseText) {
-          const verseEl = document.createElement('span');
-          verseEl.textContent = `${verseText} `;
-          paragraphEl.appendChild(verseEl);
+        if (!verseText) return;
+
+        const verseEl = document.createElement('span');
+        verseEl.className = 'reading-verse';
+
+        if (showInlineVerseNumbers && verse?.verse !== undefined && verse?.verse !== null) {
+          const verseNumber = document.createElement('span');
+          verseNumber.className = 'inline-verse-number';
+          verseNumber.textContent = `${verse.verse}:`;
+          verseEl.appendChild(verseNumber);
         }
+
+        const verseContent = document.createElement('span');
+        verseContent.textContent = `${verseText} `;
+        verseEl.appendChild(verseContent);
+        paragraphEl.appendChild(verseEl);
       });
 
       if (paragraphEl.textContent.trim()) {
@@ -659,6 +689,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  if (inlineVerseNumbersToggle) {
+    inlineVerseNumbersToggle.addEventListener('change', () => {
+      if (lastResultsData) {
+        renderResults(lastResultsData);
+      }
+    });
+  }
+
+  if (granularitySelect) {
+    granularitySelect.addEventListener('change', () => {
+      updateInlineVerseNumberVisibility();
+      if (lastResultsData) {
+        renderResults(lastResultsData);
+      }
+    });
+  }
+
   if (themeToggle) {
     themeToggle.addEventListener('click', () => {
       const nextTheme = document.body.classList.contains('dark') ? 'light' : 'dark';
@@ -726,6 +773,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  updateInlineVerseNumberVisibility();
   initTheme();
   syncAccordionState();
   window.addEventListener('scroll', handleReadingScrollAutoLoad, { passive: true });

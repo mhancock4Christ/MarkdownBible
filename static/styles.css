@@ -296,6 +296,28 @@ body.dark .results li {
   background: var(--highlight);
 }
 
+.reading-paragraphs {
+  line-height: 1.55;
+}
+
+.reading-paragraphs.passage-mode p,
+.reading-paragraphs p.passage-mode {
+  line-height: 1.7;
+  margin: 0 0 0.8rem;
+}
+
+.inline-verse-number {
+  color: var(--muted);
+  font-size: 0.8em;
+  font-weight: 700;
+  margin-right: 0.25rem;
+  user-select: none;
+}
+
+.reading-verse {
+  display: inline;
+}
+
 .bracketed-phrase {
   font-style: italic;
 }

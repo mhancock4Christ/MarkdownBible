@@ -956,7 +956,14 @@ def build_passage_items(rows, reference_style, reference_position, regexes, do_h
         verse_start = group[0]["verse"]
         verse_end = group[-1]["verse"]
 
-        passage_text_raw = " ".join(r["cleaned_text"] for r in group).strip()
+        paragraph_segments = []
+        for row in group:
+            for part in row["cleaned_text"].split("¶"):
+                clean_part = part.strip()
+                if clean_part:
+                    paragraph_segments.append(clean_part)
+
+        passage_text_raw = "\n\n".join(paragraph_segments).strip()
         passage_text_clean = passage_text_raw.replace("‹", "").replace("›", "")
         reference = get_range_reference(book, chapter, verse_start, verse_end, reference_style)
 
