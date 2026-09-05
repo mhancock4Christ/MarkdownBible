@@ -180,6 +180,27 @@ document.addEventListener('DOMContentLoaded', () => {
     return slices;
   }
 
+  function splitBracketedText(text) {
+    const segments = [];
+    const pattern = /(\[[^\]]+\])/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = pattern.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        segments.push({ text: text.slice(lastIndex, match.index), bracketed: false });
+      }
+      segments.push({ text: match[1], bracketed: true });
+      lastIndex = match.index + match[1].length;
+    }
+
+    if (lastIndex < text.length) {
+      segments.push({ text: text.slice(lastIndex), bracketed: false });
+    }
+
+    return segments.filter((segment) => segment.text.length > 0);
+  }
+
   function createStyledVerseNode(item, options = {}) {
     const text = String(item?.verse_text || '');
     if (!text) {
@@ -200,11 +221,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const fragment = document.createDocumentFragment();
     slices.forEach(({ text: sliceText, highlighted, red }) => {
-      const node = document.createElement('span');
-      if (highlighted) node.classList.add('highlight-match');
-      if (red) node.classList.add('red-letter');
-      node.textContent = sliceText;
-      fragment.appendChild(node);
+      const splitSegments = splitBracketedText(sliceText);
+
+      splitSegments.forEach(({ text: segmentText, bracketed }) => {
+        const node = document.createElement('span');
+        if (highlighted) node.classList.add('highlight-match');
+        if (red) node.classList.add('red-letter');
+        if (bracketed) node.classList.add('bracketed-phrase');
+        node.textContent = segmentText;
+        fragment.appendChild(node);
+      });
     });
 
     return fragment;
