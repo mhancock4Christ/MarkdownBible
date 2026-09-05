@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bible Study Search</title>
+    <link rel="stylesheet" href="/static/styles.css?v=20260904-1" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <div class="topbar">
+        <h1>Bible Study Search</h1>
+        <div class="topbar-actions">
+          <a class="help-link" href="/help">Help</a>
+          <button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false">
+            Dark mode
+          </button>
+        </div>
+      </div>
+
+      <main class="container">
+        <form id="searchForm" class="search-form">
+          <label class="sr-only" for="searchInput">Search</label>
+          <textarea
+            id="searchInput"
+            name="query"
+            rows="2"
+            placeholder="Search word or reference..."
+            autocomplete="off"
+          >{{ initial_query|default('', true) }}</textarea>
+
+          <div class="actions" aria-label="Search actions">
+            <button type="submit" id="searchButton">Search</button>
+            <button type="button" id="referenceButton" class="secondary">Reference</button>
+          </div>
+        </form>
+
+        <div class="accordion-groups">
+          <div class="accordion-block">
+            <button type="button" class="accordion-toggle" data-target="searchOptions" aria-expanded="false">
+              <span class="accordion-label">Search options</span>
+              <span class="accordion-arrow" aria-hidden="true">▸</span>
+            </button>
+
+            <div id="searchOptions" class="accordion-panel" data-expanded-by-user="false">
+              <div class="option-grid">
+                <label>
+                  <span>Search type</span>
+                  <select id="searchType">
+                    <option value="Phrase">Phrase</option>
+                    <option value="All Words">All Words</option>
+                    <option value="Any Word">Any Word</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Book group</span>
+                  <select id="bookGroup">
+                    <option value="All Books">All Books</option>
+                    <option value="Law">Law</option>
+                    <option value="Prophets">Prophets</option>
+                    <option value="Psalms">Psalms</option>
+                    <option value="Gospels">Gospels</option>
+                    <option value="Epistles">Epistles</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Reference style</span>
+                  <select id="referenceStyle">
+                    <option value="Wikilink">Wikilink</option>
+                    <option value="Standard">Standard</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Group By</span>
+                  <select id="granularity">
+                    <option value="Verse">Verse</option>
+                    <option value="Passage">Passage</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Reference position</span>
+                  <select id="referencePosition">
+                    <option value="Ref First">First</option>
+                    <option value="Ref Last">Last</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Context window</span>
+                  <select id="contextWindow">
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                  </select>
+                </label>
+
+
+
+                <label class="check-row">
+                  <input id="caseSensitive" type="checkbox" />
+                  <span>Case sensitive</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-block">
+            <button type="button" class="accordion-toggle" data-target="displayOptions" aria-expanded="false">
+              <span class="accordion-label">Display options</span>
+              <span class="accordion-arrow" aria-hidden="true">▸</span>
+            </button>
+
+            <div id="displayOptions" class="accordion-panel" data-expanded-by-user="false">
+              <div class="option-grid">
+                <label class="check-row">
+                  <input id="highlightMatches" type="checkbox" checked />
+                  <span>Highlight</span>
+                </label>
+
+                <label class="check-row">
+                  <input id="showRedLetters" type="checkbox" checked />
+                  <span>Red letters</span>
+                </label>
+
+                <label class="check-row">
+                  <input id="suppressParagraphs" type="checkbox" />
+                  <span>Suppress paragraphs</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="export-controls">
+          <label for="exportFormat">Export</label>
+          <select id="exportFormat" aria-label="Export format">
+            <option value="txt">TXT</option>
+            <option value="md">Markdown</option>
+            <option value="csv">CSV</option>
+            <option value="docx">DOCX</option>
+            <option value="xlsx">XLSX</option>
+          </select>
+          <div class="export-actions">
+            <button type="button" id="copyButton" class="secondary">Copy</button>
+            <button type="button" id="exportButton" class="secondary">Download</button>
+          </div>
+        </div>
+
+        <div id="status" class="status" aria-live="polite"></div>
+        <div id="results" class="results" aria-live="polite"></div>
+      </main>
+    </div>
+
+    <script>
+      window.__INITIAL_QUERY__ = {{ initial_query|default('', true)|tojson }};
+    </script>
+    <script src="/static/app.js?v=20260904-1"></script>
+  </body>
+</html>
