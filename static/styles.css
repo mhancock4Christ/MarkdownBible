@@ -296,6 +296,38 @@ body.dark .results li {
   background: var(--highlight);
 }
 
+.reading-chapter-heading {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.reading-chapter-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(16, 24, 40, 0.82);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.reading-chapter-toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .reading-paragraphs {
   line-height: 1.55;
 }
@@ -306,20 +338,70 @@ body.dark .results li {
   margin: 0 0 0.8rem;
 }
 
-.inline-verse-number {
-  color: var(--muted);
-  font-size: 0.8em;
-  font-weight: 700;
-  margin-right: 0.25rem;
-  user-select: none;
+.reading-paragraphs.passage-mode .passage-mode {
+  margin: 0 0 1.1rem;
+  line-height: 1.7;
 }
 
-.reading-verse {
+.reading-paragraphs.passage-mode .reading-verse {
+  display: block;
+  margin: 0;
+  line-height: 1.7;
+}
+
+.reading-paragraphs.passage-mode .reading-verse.inline-verse {
+  display: inline !important;
+  margin-right: 0.35em;
+  line-height: 1.7;
+}
+
+.reading-paragraphs.passage-mode .reading-verse.new-line-verse {
+  display: block;
+  margin: 0;
+  line-height: 1.7;
+}
+
+.reading-paragraphs.passage-mode .reading-verse + .reading-verse {
+  margin-top: 0.08rem;
+}
+
+.reading-paragraphs.passage-mode .reading-verse > span,
+.reading-paragraphs .reading-verse > span {
   display: inline;
+}
+
+.inline-verse-number {
+  color: var(--muted);
+  font-size: 0.72em;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: super;
+  margin-right: 0.2rem;
+  user-select: none;
+  cursor: pointer;
+  transition: color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.reading-verse-focus {
+  background: rgba(94, 129, 255, 0.12);
+  border: 1px solid rgba(94, 129, 255, 0.4);
+  border-radius: 0.7rem;
+  box-shadow: 0 0 0 2px rgba(94, 129, 255, 0.1);
+  padding: 0.15rem 0.45rem 0.2rem;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.reading-verse-focus .inline-verse-number {
+  color: #2147c6;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 0.35rem;
+  padding: 0.08rem 0.18rem;
+  box-shadow: inset 0 0 0 1px rgba(33, 71, 198, 0.2);
 }
 
 .bracketed-phrase {
   font-style: italic;
+  white-space: normal;
 }
 
 .check-row {

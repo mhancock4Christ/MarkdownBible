@@ -1118,6 +1118,13 @@ def markdown_escape_minimal(text):
     return text.replace("*", r"\*")
 
 
+def is_highlight_overlap(start, end, highlight_spans):
+    for span_start, span_end in highlight_spans:
+        if start < span_end and end > span_start:
+            return True
+    return False
+
+
 def build_text_segments(text, spans):
     if not spans:
         return [(text, False)]
@@ -1136,65 +1143,167 @@ def build_text_segments(text, spans):
     return segments
 
 
+def build_bracketed_segments(text, highlight_spans=None):
+    highlight_spans = highlight_spans or []
+    segments = []
+    pattern = re.compile(r"\[([^\]]+)\]")
+    match_found = False
+    last_index = 0
+
+    for match in pattern.finditer(text):
+        match_found = True
+        prefix = text[last_index:match.start()]
+        if prefix:
+            segments.append((prefix, is_highlight_overlap(last_index, match.start(), highlight_spans), False))
+
+        inner = match.group(1)
+        if inner:
+            inner_start = match.start() + 1
+            inner_end = inner_start + len(inner)
+            segments.append((inner, is_highlight_overlap(inner_start, inner_end, highlight_spans), True))
+
+        last_index = match.end()
+
+    if last_index < len(text):
+        suffix = text[last_index:]
+        if suffix:
+            segments.append((suffix, is_highlight_overlap(last_index, len(text), highlight_spans), False))
+
+    if not match_found:
+        return [(seg_text, is_match, False) for seg_text, is_match in build_text_segments(text, highlight_spans)]
+
+    return segments
+
+
+def get_export_verse_prefix(item):
+    verse = item.get("verse")
+    if verse is None or verse == "":
+        return ""
+    return f"{verse}. "
+
+
 def build_plain_text(item):
+    verse_prefix = get_export_verse_prefix(item)
     if item.get("reference_position") == "Ref Last":
-        return f'{item["verse_text"]} {item["reference"]}'
-    return f'{item["reference"]} {item["verse_text"]}'
+        return f'{item["verse_text"]} {item["reference"]}' if not verse_prefix else f'{verse_prefix}{item["verse_text"]} {item["reference"]}'
+    return f'{item["reference"]} {item["verse_text"]}' if not verse_prefix else f'{item["reference"]} {verse_prefix}{item["verse_text"]}'
 
 
 def build_markdown_text(item):
-    segments = build_text_segments(item["verse_text"], item.get("highlight_spans", []))
+    segments = build_bracketed_segments(item["verse_text"], item.get("highlight_spans", []))
+    verse_prefix = get_export_verse_prefix(item)
 
     parts = []
-    for seg_text, is_match in segments:
+    for seg_text, is_match, is_bracketed in segments:
         seg_text = markdown_escape_minimal(seg_text)
-        if is_match:
+        if is_match and is_bracketed:
             parts.append(f"***{seg_text}***")
+        elif is_match:
+            parts.append(f"***{seg_text}***")
+        elif is_bracketed:
+            parts.append(f"*{seg_text}*")
         else:
             parts.append(seg_text)
 
     verse_text = "".join(parts)
+    if verse_prefix:
+        verse_text = f"{verse_prefix}{verse_text}"
 
+    reference_text = build_markdown_reading_link(item["reference"])
     if item.get("reference_position") == "Ref Last":
-        return f'{verse_text} {item["reference"]}'
-    return f'{item["reference"]} {verse_text}'
+        return f'{verse_text} {reference_text}'
+    return f'{reference_text} {verse_text}'
 
 
 def write_docx_runs(paragraph, item):
-    segments = build_text_segments(item["verse_text"], item.get("highlight_spans", []))
+    segments = build_bracketed_segments(item["verse_text"], item.get("highlight_spans", []))
+    verse_prefix = get_export_verse_prefix(item)
 
     if item.get("reference_position") == "Ref First":
-        paragraph.add_run(item["reference"] + " ")
+        if hasattr(paragraph, "add_hyperlink"):
+            paragraph.add_hyperlink(item["reference"], build_reading_link(item["reference"]))
+            paragraph.add_run(" ")
+        else:
+            paragraph.add_run(item["reference"] + " ")
 
-    for seg_text, is_match in segments:
+    if verse_prefix:
+        marker = paragraph.add_run(verse_prefix)
+        marker.font.superscript = True
+
+    for seg_text, is_match, is_bracketed in segments:
         run = paragraph.add_run(seg_text)
         if is_match:
             run.bold = True
-            run.italic = True
             run.font.highlight_color = WD_COLOR_INDEX.YELLOW
+        if is_bracketed:
+            run.italic = True
 
     if item.get("reference_position") == "Ref Last":
-        paragraph.add_run(" " + item["reference"])
+        suffix = " " + item["reference"]
+        if hasattr(paragraph, "add_hyperlink"):
+            paragraph.add_hyperlink(item["reference"], build_reading_link(item["reference"]))
+        else:
+            paragraph.add_run(suffix)
 
 
 def build_xlsx_rich_text(item):
-    segments = build_text_segments(item["verse_text"], item.get("highlight_spans", []))
+    segments = build_bracketed_segments(item["verse_text"], item.get("highlight_spans", []))
+    verse_prefix = get_export_verse_prefix(item)
     rich = CellRichText()
 
-    for seg_text, is_match in segments:
-        if is_match:
-            rich.append(TextBlock(InlineFont(b=True, i=True), seg_text))
+    if verse_prefix:
+        rich.append(TextBlock(InlineFont(i=True, vertAlign='superscript'), verse_prefix.rstrip('.')))
+        rich.append(TextBlock(InlineFont(i=False), '. '))
+
+    for seg_text, is_match, is_bracketed in segments:
+        if is_match or is_bracketed:
+            rich.append(TextBlock(InlineFont(b=is_match, i=is_bracketed, vertAlign='superscript' if is_bracketed else None), seg_text))
         else:
             rich.append(seg_text)
 
     return rich
 
 
+def normalize_reading_reference(reference: str) -> str:
+    clean_reference = (reference or "").strip()
+    if not clean_reference:
+        return ""
+    clean_reference = clean_reference.replace("[[", "").replace("]]", "").strip()
+    if not clean_reference:
+        return ""
+
+    chapter_match = re.match(r"^(.+?)\s+(\d+)$", clean_reference, re.IGNORECASE)
+    if chapter_match:
+        return f"{chapter_match.group(1).strip()} {chapter_match.group(2)}"
+
+    verse_match = re.match(r"^(.+?)\s+(\d+)\s*[:.]\s*(\d+)(?:\s*-\s*\d+)?$", clean_reference, re.IGNORECASE)
+    if verse_match:
+        return f"{verse_match.group(1).strip()} {verse_match.group(2)}"
+
+    return clean_reference
+
+
 def build_reading_link(reference: str) -> str:
     clean_reference = (reference or "").strip()
     if not clean_reference:
         return "#"
-    return f"/?q={quote_plus(clean_reference)}"
+
+    clean_reference = clean_reference.replace("[[", "").replace("]]", "").strip()
+    chapter_query = normalize_reading_reference(clean_reference)
+    if not chapter_query:
+        return "#"
+
+    return (
+        f"/?q={quote_plus(chapter_query)}"
+        f"&granularity=Passage&newLineVerse=1&focus={quote_plus(clean_reference)}"
+    )
+
+
+def build_markdown_reading_link(reference: str) -> str:
+    clean_reference = (reference or "").strip()
+    if not clean_reference:
+        return ""
+    return f"[{clean_reference}]({build_reading_link(clean_reference)})"
 
 
 @app.get("/", response_class=HTMLResponse)

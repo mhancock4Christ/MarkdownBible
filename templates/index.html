@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Bible Study Search</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260904-1" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260907-4" />
   </head>
   <body>
     <div class="app-shell">
@@ -47,8 +47,8 @@
                 <label>
                   <span>Search type</span>
                   <select id="searchType">
-                    <option value="Phrase">Phrase</option>
                     <option value="All Words">All Words</option>
+                    <option value="Phrase">Phrase</option>
                     <option value="Any Word">Any Word</option>
                   </select>
                 </label>
@@ -131,12 +131,12 @@
 
                 <label id="inlineVerseNumbersRow" class="check-row" hidden>
                   <input id="showInlineVerseNumbers" type="checkbox" />
-                  <span>Inline verse numbers</span>
+                  <span>New Line Verse</span>
                 </label>
 
                 <label class="check-row">
-                  <input id="suppressParagraphs" type="checkbox" />
-                  <span>Suppress paragraphs</span>
+                  <input id="suppressParagraphs" type="checkbox" checked />
+                  <span>Hide paragraph marks</span>
                 </label>
               </div>
             </div>
@@ -146,11 +146,11 @@
         <div class="export-controls">
           <label for="exportFormat">Export</label>
           <select id="exportFormat" aria-label="Export format">
-            <option value="txt">TXT</option>
-            <option value="md">Markdown</option>
-            <option value="csv">CSV</option>
-            <option value="docx">DOCX</option>
             <option value="xlsx">XLSX</option>
+            <option value="md">Markdown</option>
+            <option value="docx">DOCX</option>
+            <option value="txt">TXT</option>
+            <option value="csv">CSV</option>
           </select>
           <div class="export-actions">
             <button type="button" id="copyButton" class="secondary">Copy</button>
@@ -166,6 +166,6 @@
     <script>
       window.__INITIAL_QUERY__ = {{ initial_query|default('', true)|tojson }};
     </script>
-    <script src="/static/app.js?v=20260904-1"></script>
+    <script src="/static/app.js?v=20260907-4"></script>
   </body>
 </html>
