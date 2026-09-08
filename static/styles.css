@@ -427,6 +427,13 @@ body.dark .results li {
   min-height: 24px;
   margin-bottom: 16px;
   color: var(--muted);
+  opacity: 1;
+  transition: opacity 0.35s ease;
+}
+
+.status.hidden {
+  opacity: 0;
+  visibility: hidden;
 }
 
 .status.error {

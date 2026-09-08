@@ -216,6 +216,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!status) return;
     status.textContent = message || '';
     status.classList.toggle('error', isError);
+    status.classList.remove('hidden');
+    status.style.visibility = 'visible';
+    status.style.opacity = '1';
+
+    if (setStatus.timeoutId) {
+      window.clearTimeout(setStatus.timeoutId);
+    }
+
+    if (message) {
+      setStatus.timeoutId = window.setTimeout(() => {
+        status.classList.add('hidden');
+        status.style.opacity = '0';
+        status.style.visibility = 'hidden';
+      }, 5000);
+    } else {
+      setStatus.timeoutId = null;
+    }
   }
 
   function collapseReadingAccordions() {
@@ -444,6 +461,43 @@ document.addEventListener('DOMContentLoaded', () => {
       list.appendChild(li);
     });
 
+    wrapper.appendChild(list);
+    results.appendChild(wrapper);
+  }
+
+  function renderWildcardSummaryForReadingView(data) {
+    if (!data || !Array.isArray(data.wildcard_summary) || !data.wildcard_summary.length) {
+      return;
+    }
+
+    const existing = document.querySelector('.wildcard-summary');
+    if (existing) {
+      existing.remove();
+    }
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'wildcard-summary';
+
+    const title = document.createElement('h3');
+    title.textContent = 'Word counts';
+    wrapper.appendChild(title);
+
+    const list = document.createElement('ul');
+    data.wildcard_summary.forEach((entry) => {
+      const li = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'summary-link';
+      button.textContent = `${entry.word} (${entry.matches})`;
+      button.addEventListener('click', () => {
+        const url = new URL(window.location.href);
+        url.pathname = '/';
+        url.search = new URLSearchParams({ q: entry.word }).toString();
+        window.open(url.toString(), '_blank', 'noopener,noreferrer');
+      });
+      li.appendChild(button);
+      list.appendChild(li);
+    });
     wrapper.appendChild(list);
     results.appendChild(wrapper);
   }
@@ -881,6 +935,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       updateInlineVerseNumberVisibility();
       renderReadingView(data);
+      renderWildcardSummaryForReadingView(data);
       return;
     }
 
@@ -953,20 +1008,78 @@ document.addEventListener('DOMContentLoaded', () => {
     return payload;
   }
 
+  function escapeMarkdownText(text) {
+    return String(text ?? '').replace(/\\/g, '\\\\').replace(/([*_])/g, '\\$1');
+  }
+
+  function buildMarkdownTextForItem(item) {
+    const reference = String(item?.reference || '');
+    const verseText = String(item?.verse_text || '');
+    const referencePosition = item?.reference_position || 'Ref First';
+    const highlightSpans = Array.isArray(item?.highlight_spans) ? item.highlight_spans : [];
+
+    const renderedVerse = buildVerseSlices(verseText, highlightSpans, [], true, false)
+      .flatMap(({ text: sliceText, highlighted }) => splitBracketedText(sliceText).map(({ text: segmentText, bracketed }) => {
+        const safeText = escapeMarkdownText(segmentText);
+        if (highlighted) {
+          return `***${safeText}***`;
+        }
+        return bracketed ? `*${safeText}*` : safeText;
+      }))
+      .join('');
+
+    if (!reference && !renderedVerse) {
+      return '';
+    }
+
+    return referencePosition === 'Ref Last'
+      ? `${renderedVerse} ${reference}`.trim()
+      : `${reference} ${renderedVerse}`.trim();
+  }
+
+  function buildPassageCopyText(item) {
+    const reference = String(item?.reference || '');
+    const paragraphs = (Array.isArray(item?.paragraphs) ? item.paragraphs : [])
+      .map((paragraph) => {
+        if (!Array.isArray(paragraph)) {
+          return String(paragraph ?? '');
+        }
+        return paragraph
+          .map((verse) => `${verse?.verse !== undefined && verse?.verse !== null ? `${verse.verse}. ` : ''}${verse?.text ?? ''}`)
+          .join(' ');
+      })
+      .filter(Boolean)
+      .join('\n');
+
+    if (!reference && !paragraphs) {
+      return '';
+    }
+
+    return reference ? `${reference}\n${paragraphs}`.trim() : paragraphs.trim();
+  }
+
+  function buildCurrentViewText() {
+    const viewData = lastResultsData || {};
+    const isPassageMode = (granularitySelect?.value || 'Verse') === 'Passage';
+    const readingItems = Array.isArray(viewData.reading_items) ? viewData.reading_items : [];
+
+    if (isPassageMode && readingItems.length) {
+      return readingItems
+        .map((item) => buildPassageCopyText(item))
+        .filter(Boolean)
+        .join('\n\n');
+    }
+
+    const items = Array.isArray(viewData.items) ? viewData.items : [];
+    return items.map(buildMarkdownTextForItem).filter(Boolean).join('\n');
+  }
+
   async function copyResults() {
-    const items = Array.isArray(lastResultsData?.items) ? lastResultsData.items : [];
-    if (!items.length) {
+    const text = buildCurrentViewText();
+    if (!text.trim()) {
       setStatus('No results to copy.', true);
       return;
     }
-
-    const text = items
-      .map((item) => {
-        const reference = item?.reference || '';
-        const verseText = item?.verse_text || '';
-        return [reference, verseText].filter(Boolean).join(' ');
-      })
-      .join('\n');
 
     if (!navigator.clipboard || !window.isSecureContext) {
       const fallback = document.createElement('textarea');
@@ -975,12 +1088,12 @@ document.addEventListener('DOMContentLoaded', () => {
       fallback.select();
       document.execCommand('copy');
       fallback.remove();
-      setStatus('Copied results to clipboard.');
+      setStatus('Copied current view to clipboard.');
       return;
     }
 
     await navigator.clipboard.writeText(text);
-    setStatus('Copied results to clipboard.');
+    setStatus('Copied current view to clipboard.');
   }
 
   async function exportResults() {
@@ -1031,7 +1144,9 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const data = await postSearch(intent, query, options);
 
-      if (intent === 'search' && (Number(data.count || 0) === 0 || !(data.items || []).length)) {
+      const hasApostropheTextQuery = typeof query === 'string' && /['’]/.test(query) && !looksLikeReferenceQuery(query);
+
+      if (intent === 'search' && !hasApostropheTextQuery && (Number(data.count || 0) === 0 || !(data.items || []).length)) {
         setStatus('No word search results. Trying reference search...');
         const referenceData = await postSearch('reference', query, options);
 
