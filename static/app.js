@@ -135,6 +135,31 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
+  function applyReadingVerseFocus(reference) {
+    const target = normalizeReferenceForUrl(reference);
+    if (!target) return;
+
+    document.querySelectorAll('.reading-verse-focus').forEach((el) => {
+      el.classList.remove('reading-verse-focus');
+    });
+
+    const match = target.match(/(.+?)\s+(\d+)\s*[:.]\s*(\d+)/);
+    if (!match) return;
+
+    const bookName = match[1].trim();
+    const chapter = match[2];
+    const verse = match[3];
+    const bookNumber = bookNumberFromName(bookName);
+    if (!bookNumber || !chapter || !verse) return;
+
+    const verseId = buildReadingVerseId(bookNumber, chapter, verse);
+    const verseEl = document.getElementById(verseId);
+    if (verseEl) {
+      verseEl.classList.add('reading-verse-focus');
+      window.__READING_FOCUS_REF = target;
+    }
+  }
+
   function scrollReadingVerseIntoView(reference, options = {}) {
     const { center = false } = options;
     const target = normalizeReferenceForUrl(reference);
@@ -152,11 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const verseId = buildReadingVerseId(bookNumber, chapter, verse);
     const verseEl = document.getElementById(verseId);
     if (verseEl) {
-      document.querySelectorAll('.reading-verse-focus').forEach((el) => {
-        el.classList.remove('reading-verse-focus');
-      });
-
-      verseEl.classList.add('reading-verse-focus');
+      applyReadingVerseFocus(target);
       if (center) {
         verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         verseEl.setAttribute('tabindex', '-1');
@@ -663,10 +684,10 @@ document.addEventListener('DOMContentLoaded', () => {
     results.appendChild(wrapper);
 
     const focusReference = getUrlReadSettings().focus || window.__READING_FOCUS_REF || '';
-    const shouldCenterFocus = Boolean(focusReference) && window.__READING_FOCUS_INITIALIZED__ !== focusReference;
-    if (shouldCenterFocus) {
+    if (focusReference) {
       window.__READING_FOCUS_INITIALIZED__ = focusReference;
-      requestAnimationFrame(() => scrollReadingVerseIntoView(focusReference, { center: true }));
+      window.__READING_FOCUS_REF = focusReference;
+      applyReadingVerseFocus(focusReference);
     }
   }
 
@@ -699,6 +720,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       renderReadingView({ reading_items: readingNavigationState.entries });
+      const activeFocus = window.__READING_FOCUS_REF || getUrlReadSettings().focus || '';
+      if (activeFocus) {
+        applyReadingVerseFocus(activeFocus);
+      }
 
       const toastEntry = direction === 'next'
         ? readingNavigationState.entries[readingNavigationState.entries.length - 1]

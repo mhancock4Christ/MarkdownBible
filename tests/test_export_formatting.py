@@ -1,9 +1,17 @@
+import asyncio
 import sqlite3
 
+import pytest
+from fastapi import HTTPException
 from openpyxl import Workbook
 from docx import Document
 
 from main import (
+    export_csv,
+    export_docx,
+    export_md,
+    export_txt,
+    export_xlsx,
     build_markdown_text,
     build_reading_link,
     build_xlsx_rich_text,
@@ -11,6 +19,19 @@ from main import (
     get_sqlite_text_rows,
     write_docx_runs,
 )
+
+
+def test_export_endpoints_reject_empty_items():
+    with pytest.raises(HTTPException, match="No results to export"):
+        asyncio.run(export_txt([]))
+    with pytest.raises(HTTPException, match="No results to export"):
+        asyncio.run(export_csv([]))
+    with pytest.raises(HTTPException, match="No results to export"):
+        asyncio.run(export_md(None, []))
+    with pytest.raises(HTTPException, match="No results to export"):
+        asyncio.run(export_docx(None, []))
+    with pytest.raises(HTTPException, match="No results to export"):
+        asyncio.run(export_xlsx(None, []))
 
 
 def test_markdown_text_uses_visible_highlight_formatting_and_web_link():
@@ -163,6 +184,22 @@ def test_markdown_export_uses_reference_without_verse_number_prefix_in_search_mo
     assert "[Web](https://example.com/?q=John+1&granularity=Passage&newLineVerse=1&focus=John+1%3A1)" in result
 
 
+def test_markdown_export_honors_reference_last_ordering_in_search_mode():
+    item = {
+        "reference": "John 1:1",
+        "reference_position": "Ref Last",
+        "verse": 1,
+        "verse_text": "In the beginning was the Word.",
+        "highlight_spans": [],
+    }
+
+    result = build_markdown_text(item, base_url="https://example.com")
+
+    assert "In the beginning was the Word. John 1:1" in result
+    assert "John 1:1 In the beginning" not in result
+    assert "[Web](https://example.com/?q=John+1&granularity=Passage&newLineVerse=1&focus=John+1%3A1)" in result
+
+
 def test_markdown_export_preserves_standard_reference_format_without_url_link():
     item = {
         "reference": "Matthew 4:18",
@@ -195,5 +232,5 @@ def test_apostrophe_search_finds_literal_matches_in_sqlite_fallback():
 
     assert rows_phrase
     assert rows_words
-    assert any(row[2] == 14 and row[1] == 40 for row in rows_phrase)
-    assert any(row[2] == 40 and row[1] == 43 for row in rows_words)
+    assert any(row[1] == 40 and row[2] == 8 and row[3] == 14 for row in rows_phrase)
+    assert any(row[1] == 43 and row[2] == 1 and row[3] == 40 for row in rows_words)

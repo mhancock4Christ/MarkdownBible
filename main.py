@@ -688,8 +688,13 @@ def get_sqlite_text_rows(cur, search_text, selected_books, search_mode, case_sen
         cur.execute(base_query, params)
         return cur.fetchall()
 
+    literal_apostrophe_query = "'" in search_text or "’" in search_text
+
     if search_mode == "Phrase":
-        if case_sensitive:
+        if literal_apostrophe_query:
+            base_query += f" AND ({COL_TEXT} LIKE ? ESCAPE '\\')"
+            params.append(f"%{search_text}%")
+        elif case_sensitive:
             base_query += f" AND instr({COL_TEXT}, ?) > 0"
             params.append(search_text)
         else:
@@ -704,7 +709,10 @@ def get_sqlite_text_rows(cur, search_text, selected_books, search_mode, case_sen
         clauses = []
 
         for word in words:
-            if case_sensitive:
+            if literal_apostrophe_query:
+                clauses.append(f"({COL_TEXT} LIKE ? ESCAPE '\\')")
+                params.append(f"%{word}%")
+            elif case_sensitive:
                 clauses.append(f"instr({COL_TEXT}, ?) > 0")
                 params.append(word)
             else:
@@ -1181,11 +1189,20 @@ def build_bracketed_segments(text, highlight_spans=None):
 
         inner = match.group(1)
         if inner:
-            inner_start = match.start()
-            inner_end = inner_start + len(inner)
-            relative = build_relative_spans_for_slice(inner, inner_start, highlight_spans)
-            if relative:
-                for seg_text, is_match in build_text_segments(inner, relative):
+            inner_raw_start = match.start() + 1
+            inner_raw_end = inner_raw_start + len(inner)
+            local_spans = []
+            for span_start, span_end in highlight_spans:
+                if span_end <= match.start() or span_start >= match.end():
+                    continue
+                offset = inner_raw_start if span_start >= inner_raw_start else match.start()
+                local_start = max(0, span_start - offset)
+                local_end = max(local_start, min(len(inner), span_end - offset))
+                if local_end > local_start:
+                    local_spans.append((local_start, local_end))
+
+            if local_spans:
+                for seg_text, is_match in build_text_segments(inner, local_spans):
                     segments.append((seg_text, is_match, True))
             else:
                 segments.append((inner, False, True))
@@ -1218,15 +1235,28 @@ def get_export_verse_prefix(item):
 
 
 def build_plain_text(item):
+    reference = item.get("reference") or ""
+    verse_text = item.get("verse_text") or ""
     verse_prefix = get_export_verse_prefix(item)
+
     if item.get("reference_position") == "Ref Last":
-        return f'{item["verse_text"]} {item["reference"]}' if not verse_prefix else f'{verse_prefix}{item["verse_text"]} {item["reference"]}'
-    return f'{item["reference"]} {item["verse_text"]}' if not verse_prefix else f'{item["reference"]} {verse_prefix}{item["verse_text"]}'
+        if not reference:
+            return f"{verse_prefix}{verse_text}".strip()
+        if verse_prefix:
+            return f"{verse_prefix}{verse_text} {reference}".strip()
+        return f"{verse_text} {reference}".strip()
+
+    if not reference:
+        return f"{verse_prefix}{verse_text}".strip()
+    if verse_prefix:
+        return f"{reference} {verse_prefix}{verse_text}".strip()
+    return f"{reference} {verse_text}".strip()
 
 
 def build_markdown_text(item, base_url: str | None = None):
     segments = build_bracketed_segments(item["verse_text"], item.get("highlight_spans", []))
     reference = item.get("reference") or ""
+    reference_position = item.get("reference_position") or "Ref First"
     verse_prefix = get_export_verse_prefix(item) if not reference else ""
 
     parts = []
@@ -1245,9 +1275,12 @@ def build_markdown_text(item, base_url: str | None = None):
 
     markdown_reference = build_markdown_reading_link(reference, base_url=base_url)
     web_link = build_markdown_web_link(reference, base_url=base_url)
-    if markdown_reference:
-        return f"{markdown_reference} {verse_text} {web_link}".strip()
-    return f"{verse_text} {web_link}".strip()
+    if not markdown_reference:
+        return f"{verse_text} {web_link}".strip()
+
+    if reference_position == "Ref Last":
+        return f"{verse_text} {markdown_reference} {web_link}".strip()
+    return f"{markdown_reference} {verse_text} {web_link}".strip()
 
 
 def add_docx_hyperlink(paragraph, text, url):
@@ -1278,6 +1311,25 @@ def write_docx_runs(paragraph, item, base_url: str | None = None):
     segments = build_bracketed_segments(item["verse_text"], item.get("highlight_spans", []))
     verse_prefix = get_export_verse_prefix(item)
     reference = item.get("reference") or ""
+    reference_position = item.get("reference_position") or "Ref First"
+
+    if reference_position == "Ref Last":
+        if verse_prefix:
+            paragraph.add_run(verse_prefix)
+        for seg_text, is_match, is_bracketed in segments:
+            run = paragraph.add_run(seg_text)
+            if is_match:
+                run.bold = True
+                run.underline = True
+                run.font.highlight_color = WD_COLOR_INDEX.YELLOW
+            if is_bracketed:
+                run.italic = True
+        if reference:
+            paragraph.add_run(" ")
+            paragraph.add_run(reference)
+        paragraph.add_run(" ")
+        add_docx_hyperlink(paragraph, "Web", build_reading_link(reference, base_url=base_url))
+        return
 
     if reference:
         paragraph.add_run(reference)
@@ -1301,7 +1353,8 @@ def write_docx_runs(paragraph, item, base_url: str | None = None):
 
 def build_xlsx_rich_text(item):
     segments = build_bracketed_segments(item["verse_text"], item.get("highlight_spans", []))
-    verse_prefix = get_export_verse_prefix(item)
+    verse_number = item.get("verse")
+    verse_prefix = f"{verse_number}. " if verse_number is not None and verse_number != "" else ""
     rich = CellRichText()
 
     if verse_prefix:
@@ -1593,8 +1646,15 @@ async def search(payload: SearchRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def ensure_export_items(items: List[dict] | None):
+    if not items:
+        raise HTTPException(status_code=400, detail="No results to export.")
+    return items
+
+
 @app.post("/api/export/txt")
 async def export_txt(items: List[dict]):
+    ensure_export_items(items)
     output = io.StringIO()
     for item in items:
         output.write(build_plain_text(item) + "\n")
@@ -1609,6 +1669,7 @@ async def export_txt(items: List[dict]):
 
 @app.post("/api/export/md")
 async def export_md(request: Request, items: List[dict]):
+    ensure_export_items(items)
     base_url = str(request.base_url).rstrip("/")
     output = io.StringIO()
     for item in items:
@@ -1624,6 +1685,7 @@ async def export_md(request: Request, items: List[dict]):
 
 @app.post("/api/export/csv")
 async def export_csv(items: List[dict]):
+    ensure_export_items(items)
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(["Reference", "Verse"])
@@ -1640,6 +1702,7 @@ async def export_csv(items: List[dict]):
 
 @app.post("/api/export/docx")
 async def export_docx(request: Request, items: List[dict]):
+    ensure_export_items(items)
     doc = Document()
     base_url = str(request.base_url).rstrip("/")
 
@@ -1660,6 +1723,7 @@ async def export_docx(request: Request, items: List[dict]):
 
 @app.post("/api/export/xlsx")
 async def export_xlsx(request: Request, items: List[dict]):
+    ensure_export_items(items)
     wb = Workbook()
     ws = wb.active
     ws.title = "Verses"
