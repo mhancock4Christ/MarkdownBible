@@ -124,7 +124,7 @@
 
             <div id="displayOptions" class="accordion-panel" data-expanded-by-user="false">
               <div class="option-grid">
-                <label class="check-row">
+                <label id="highlightMatchesRow" class="check-row">
                   <input id="highlightMatches" type="checkbox" checked />
                   <span>Highlight</span>
                 </label>
@@ -132,6 +132,11 @@
                 <label class="check-row">
                   <input id="showRedLetters" type="checkbox" checked />
                   <span>Red letters</span>
+                </label>
+
+                <label id="referenceLinksRow" class="check-row">
+                  <input id="showReferenceLinks" type="checkbox" checked />
+                  <span>Reference links</span>
                 </label>
 
                 <label id="inlineVerseNumbersRow" class="check-row" hidden>
@@ -171,6 +176,6 @@
     <script>
       window.__INITIAL_QUERY__ = {{ initial_query|default('', true)|tojson }};
     </script>
-    <script src="/static/app.js?v=20260908-1"></script>
+    <script src="/static/app.js?v=20260912-2"></script>
   </body>
 </html>

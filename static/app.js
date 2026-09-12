@@ -226,10 +226,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function getDisplayOptions() {
     const highlightCheckbox = document.getElementById('highlightMatches');
     const redLetterCheckbox = document.getElementById('showRedLetters');
+    const referenceLinkCheckbox = document.getElementById('showReferenceLinks');
 
     return {
       highlight: Boolean(highlightCheckbox && highlightCheckbox.checked),
-      show_red_letters: Boolean(redLetterCheckbox && redLetterCheckbox.checked)
+      show_red_letters: Boolean(redLetterCheckbox && redLetterCheckbox.checked),
+      show_reference_links: Boolean(referenceLinkCheckbox && referenceLinkCheckbox.checked)
     };
   }
 
@@ -537,14 +539,32 @@ document.addEventListener('DOMContentLoaded', () => {
     applyTheme(storedTheme || 'light');
   }
 
-  function updateInlineVerseNumberVisibility() {
+  function updateDisplayOptionsVisibility() {
+    const hasReadingView = Boolean(document.querySelector('.reading-view'));
     const isPassageMode = (granularitySelect?.value || 'Verse') === 'Passage';
-    if (inlineVerseNumbersRow) {
-      inlineVerseNumbersRow.hidden = !isPassageMode;
+    const highlightMatchesRow = document.getElementById('highlightMatchesRow');
+    const referenceLinksRow = document.getElementById('referenceLinksRow');
+    const shouldShowInlineVerseNumbers = hasReadingView && isPassageMode;
+
+    if (highlightMatchesRow) {
+      highlightMatchesRow.hidden = hasReadingView;
     }
-    if (inlineVerseNumbersToggle && !isPassageMode) {
+
+    if (referenceLinksRow) {
+      referenceLinksRow.hidden = hasReadingView && isPassageMode;
+    }
+
+    if (inlineVerseNumbersRow) {
+      inlineVerseNumbersRow.hidden = !shouldShowInlineVerseNumbers;
+    }
+
+    if (inlineVerseNumbersToggle && !shouldShowInlineVerseNumbers) {
       inlineVerseNumbersToggle.checked = false;
     }
+  }
+
+  function updateInlineVerseNumberVisibility() {
+    updateDisplayOptionsVisibility();
   }
 
   function renderReadingParagraphs(item) {
@@ -945,6 +965,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderResults(data) {
     lastResultsData = data || null;
+    updateDisplayOptionsVisibility();
     readingNavigationState.entries = [];
     if (!results) return;
     results.innerHTML = '';
@@ -981,15 +1002,21 @@ document.addEventListener('DOMContentLoaded', () => {
     items.forEach((item) => {
       const li = document.createElement('li');
       const reference = item.reference || 'Reference';
-      const link = document.createElement('a');
-      link.href = buildReferenceUrl(reference);
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.className = 'result-reference';
+      const shouldLinkReference = Boolean(displayOptions.show_reference_links) && Boolean(item.reference);
+      const referenceNode = shouldLinkReference ? document.createElement('a') : document.createElement('span');
+
+      if (shouldLinkReference) {
+        referenceNode.href = buildReferenceUrl(reference);
+        referenceNode.target = '_blank';
+        referenceNode.rel = 'noopener noreferrer';
+        referenceNode.className = 'result-reference';
+      } else {
+        referenceNode.className = 'result-reference';
+      }
 
       const strong = document.createElement('strong');
       strong.textContent = reference;
-      link.appendChild(strong);
+      referenceNode.appendChild(strong);
 
       const verse = document.createElement('span');
       verse.className = 'verse-text';
@@ -997,7 +1024,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const separator = document.createTextNode(' — ');
       verse.appendChild(createStyledVerseNode(item, displayOptions));
 
-      li.appendChild(link);
+      li.appendChild(referenceNode);
       li.appendChild(separator);
       li.appendChild(verse);
       list.appendChild(li);
@@ -1198,29 +1225,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const highlightToggle = document.getElementById('highlightMatches');
   const redLetterToggle = document.getElementById('showRedLetters');
+  const referenceLinkToggle = document.getElementById('showReferenceLinks');
+
+  function rerenderForDisplayChange() {
+    updateDisplayOptionsVisibility();
+    if (lastResultsData) {
+      renderResults(lastResultsData);
+    }
+  }
 
   if (highlightToggle) {
-    highlightToggle.addEventListener('change', () => {
-      if (lastResultsData) {
-        renderResults(lastResultsData);
-      }
-    });
+    highlightToggle.addEventListener('change', rerenderForDisplayChange);
   }
 
   if (redLetterToggle) {
-    redLetterToggle.addEventListener('change', () => {
-      if (lastResultsData) {
-        renderResults(lastResultsData);
-      }
-    });
+    redLetterToggle.addEventListener('change', rerenderForDisplayChange);
+  }
+
+  if (referenceLinkToggle) {
+    referenceLinkToggle.addEventListener('change', rerenderForDisplayChange);
   }
 
   if (inlineVerseNumbersToggle) {
-    inlineVerseNumbersToggle.addEventListener('change', () => {
-      if (lastResultsData) {
-        renderResults(lastResultsData);
-      }
-    });
+    inlineVerseNumbersToggle.addEventListener('change', rerenderForDisplayChange);
   }
 
   if (granularitySelect) {
