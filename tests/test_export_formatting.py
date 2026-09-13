@@ -7,6 +7,7 @@ from openpyxl import Workbook
 from docx import Document
 
 from main import (
+    compile_search_regexes,
     export_csv,
     export_docx,
     export_md,
@@ -32,6 +33,32 @@ def test_export_endpoints_reject_empty_items():
         asyncio.run(export_docx(None, []))
     with pytest.raises(HTTPException, match="No results to export"):
         asyncio.run(export_xlsx(None, []))
+
+
+def test_exact_word_search_excludes_longer_words_by_default():
+    regexes = compile_search_regexes("hand", "Phrase", whole_word=False, case_sensitive=False)
+
+    assert regexes[0].search("hand") is not None
+    assert regexes[0].search("my hand is here") is not None
+    assert regexes[0].search("hands") is None
+    assert regexes[0].search("handed") is None
+
+
+def test_wildcard_search_allows_matches_only_at_wildcard_position():
+    suffix_regexes = compile_search_regexes("hand*", "Phrase", whole_word=False, case_sensitive=False)
+    prefix_regexes = compile_search_regexes("*hand", "Phrase", whole_word=False, case_sensitive=False)
+    contains_regexes = compile_search_regexes("*hand*", "Phrase", whole_word=False, case_sensitive=False)
+
+    assert suffix_regexes[0].search("hand") is not None
+    assert suffix_regexes[0].search("hands") is not None
+    assert suffix_regexes[0].search("handed") is not None
+    assert suffix_regexes[0].search("merchand") is None
+
+    assert prefix_regexes[0].search("hand") is not None
+    assert prefix_regexes[0].search("merchand") is not None
+
+    assert contains_regexes[0].search("merchandise") is not None
+    assert contains_regexes[0].search("merchand") is not None
 
 
 def test_markdown_text_uses_visible_highlight_formatting_and_web_link():

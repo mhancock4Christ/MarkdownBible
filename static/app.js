@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const granularity = document.getElementById('granularity');
   const referencePosition = document.getElementById('referencePosition');
   const contextWindow = document.getElementById('contextWindow');
-  const wholeWord = document.getElementById('wholeWord');
   const caseSensitive = document.getElementById('caseSensitive');
   const suppressParagraphs = document.getElementById('suppressParagraphs');
   if (suppressParagraphs) {
@@ -102,19 +101,48 @@ document.addEventListener('DOMContentLoaded', () => {
     return /^(?:[A-Za-z][A-Za-z\.\s'-]*?)\s*\d+\s*[:.]\s*\d+$/.test(text);
   }
 
+  function getCurrentDisplaySettings() {
+    const params = new URLSearchParams(window.location.search);
+    const selectedGranularity = granularitySelect?.value || params.get('granularity') || 'Verse';
+    return {
+      granularity: selectedGranularity,
+      showReferenceLinks: Boolean(referenceLinkToggle ? referenceLinkToggle.checked : params.get('showReferenceLinks') === '1' || params.get('showReferenceLinks') === 'true'),
+      highlight: Boolean(highlightToggle ? highlightToggle.checked : params.get('highlight') === '1' || params.get('highlight') === 'true'),
+      showRedLetters: Boolean(redLetterToggle ? redLetterToggle.checked : params.get('showRedLetters') === '1' || params.get('showRedLetters') === 'true'),
+      newLineVerse: Boolean(inlineVerseNumbersToggle ? inlineVerseNumbersToggle.checked : params.get('newLineVerse') === '1' || params.get('newLineVerse') === 'true')
+    };
+  }
+
   function buildReferenceUrl(reference) {
     const query = normalizeReferenceForUrl(reference);
     if (!query) return '#';
 
     const chapterQuery = chapterReferenceForReadingUrl(query) || query;
+    const activeSettings = getCurrentDisplaySettings();
+    const activeGranularity = activeSettings.granularity || 'Verse';
+    const showReferenceLinks = Boolean(activeSettings.showReferenceLinks);
+    const highlightMatches = Boolean(activeSettings.highlight);
+    const showRedLetters = Boolean(activeSettings.showRedLetters);
+    const useNewLineVerse = activeGranularity === 'Passage' && Boolean(activeSettings.newLineVerse);
+
     const url = new URL(window.location.href);
     url.pathname = '/';
-    url.search = new URLSearchParams({
+    const params = new URLSearchParams({
       q: chapterQuery,
-      granularity: 'Verse',
-      newLineVerse: '1',
-      focus: query
-    }).toString();
+      granularity: activeGranularity,
+      focus: query,
+      showReferenceLinks: showReferenceLinks ? '1' : '0',
+      highlight: highlightMatches ? '1' : '0',
+      showRedLetters: showRedLetters ? '1' : '0'
+    });
+
+    if (useNewLineVerse) {
+      params.set('newLineVerse', '1');
+    } else if (activeGranularity === 'Passage') {
+      params.delete('newLineVerse');
+    }
+
+    url.search = params.toString();
     return url.toString();
   }
 
@@ -131,7 +159,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return {
       granularity: params.get('granularity') || '',
       newLineVerse: params.get('newLineVerse') === '1' || params.get('newLineVerse') === 'true',
-      focus: params.get('focus') || ''
+      focus: params.get('focus') || '',
+      showReferenceLinks: params.get('showReferenceLinks') === '1' || params.get('showReferenceLinks') === 'true',
+      highlight: params.get('highlight') === '1' || params.get('highlight') === 'true',
+      showRedLetters: params.get('showRedLetters') === '1' || params.get('showRedLetters') === 'true'
     };
   }
 
@@ -213,7 +244,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return {
       book_group: bookGroup ? bookGroup.value : 'All Books',
       search_type: searchType ? searchType.value : 'Phrase',
-      whole_word: Boolean(wholeWord && wholeWord.checked),
       case_sensitive: Boolean(caseSensitive && caseSensitive.checked),
       reference_style: referenceStyle ? referenceStyle.value : 'Wikilink',
       granularity: granularity ? granularity.value : 'Verse',
@@ -539,6 +569,14 @@ document.addEventListener('DOMContentLoaded', () => {
     applyTheme(storedTheme || 'light');
   }
 
+  function syncInlineVerseRowDisplay() {
+    if (!inlineVerseNumbersRow) return;
+    const isPassageMode = (granularitySelect?.value || 'Verse') === 'Passage';
+    inlineVerseNumbersRow.hidden = !isPassageMode;
+    inlineVerseNumbersRow.style.display = isPassageMode ? 'flex' : 'none';
+    inlineVerseNumbersRow.style.visibility = isPassageMode ? 'visible' : 'hidden';
+  }
+
   function updateDisplayOptionsVisibility() {
     const hasReadingView = Boolean(document.querySelector('.reading-view'));
     const urlSettings = getUrlReadSettings();
@@ -546,28 +584,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const highlightMatchesRow = document.getElementById('highlightMatchesRow');
     const referenceLinksRow = document.getElementById('referenceLinksRow');
     const hasInlineVersePreference = Boolean(urlSettings.newLineVerse || (inlineVerseNumbersToggle && inlineVerseNumbersToggle.checked));
-    const shouldShowInlineVerseNumbers = hasReadingView && (isPassageMode || hasInlineVersePreference);
 
     if (highlightMatchesRow) {
       highlightMatchesRow.hidden = hasReadingView;
+      highlightMatchesRow.style.display = hasReadingView ? 'none' : 'flex';
     }
 
     if (referenceLinksRow) {
       referenceLinksRow.hidden = hasReadingView && isPassageMode;
+      referenceLinksRow.style.display = (hasReadingView && isPassageMode) ? 'none' : 'flex';
     }
 
-    if (inlineVerseNumbersRow) {
-      inlineVerseNumbersRow.hidden = !shouldShowInlineVerseNumbers;
-    }
+    syncInlineVerseRowDisplay();
 
-    if (inlineVerseNumbersToggle && !shouldShowInlineVerseNumbers) {
+    if (inlineVerseNumbersToggle && !isPassageMode && !hasInlineVersePreference) {
       inlineVerseNumbersToggle.checked = false;
     }
   }
 
   function updateUrlDisplayState() {
     const params = new URLSearchParams(window.location.search);
-    const activeGranularity = granularitySelect?.value || 'Verse';
+    const activeGranularity = granularitySelect?.value || params.get('granularity') || 'Verse';
     params.set('granularity', activeGranularity);
 
     if (activeGranularity === 'Passage' && inlineVerseNumbersToggle && inlineVerseNumbersToggle.checked) {
@@ -576,19 +613,42 @@ document.addEventListener('DOMContentLoaded', () => {
       params.delete('newLineVerse');
     }
 
+    if (highlightToggle) {
+      params.set('highlight', highlightToggle.checked ? '1' : '0');
+    }
+
+    if (redLetterToggle) {
+      params.set('showRedLetters', redLetterToggle.checked ? '1' : '0');
+    }
+
+    if (referenceLinkToggle) {
+      params.set('showReferenceLinks', referenceLinkToggle.checked ? '1' : '0');
+    }
+
     const nextUrl = new URL(window.location.href);
     nextUrl.search = params.toString();
     window.history.replaceState({}, '', nextUrl.toString());
   }
 
+  function syncInlineVerseToggleFromUrl() {
+    if (!inlineVerseNumbersToggle) return;
+    const urlSettings = getUrlReadSettings();
+    if (urlSettings.granularity === 'Passage' || urlSettings.newLineVerse) {
+      inlineVerseNumbersToggle.checked = Boolean(urlSettings.newLineVerse || inlineVerseNumbersToggle.checked);
+      return;
+    }
+    inlineVerseNumbersToggle.checked = false;
+  }
+
   function updateInlineVerseNumberVisibility() {
+    syncInlineVerseToggleFromUrl();
     updateDisplayOptionsVisibility();
   }
 
   function renderReadingParagraphs(item) {
     const container = document.createElement('div');
     const isPassageMode = (granularitySelect?.value || 'Verse') === 'Passage';
-    const useNewLineVerse = isPassageMode && Boolean(inlineVerseNumbersToggle?.checked);
+    const useNewLineVerse = isPassageMode && Boolean(inlineVerseNumbersToggle ? inlineVerseNumbersToggle.checked : getUrlReadSettings().newLineVerse);
     container.className = `reading-paragraphs${isPassageMode ? ' passage-mode' : ''}`;
 
     const paragraphs = Array.isArray(item?.paragraphs) ? item.paragraphs : [];
@@ -998,10 +1058,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (urlSettings.granularity === 'Passage') {
         granularitySelect.value = 'Passage';
       }
-      if (urlSettings.granularity === 'Passage' && urlSettings.newLineVerse) {
-        inlineVerseNumbersToggle.checked = true;
-      } else if (inlineVerseNumbersToggle) {
-        inlineVerseNumbersToggle.checked = false;
+      if (inlineVerseNumbersToggle) {
+        inlineVerseNumbersToggle.checked = Boolean(urlSettings.newLineVerse || inlineVerseNumbersToggle.checked);
       }
       updateInlineVerseNumberVisibility();
       renderReadingView(data);
@@ -1279,13 +1337,27 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (inlineVerseNumbersToggle) {
-    inlineVerseNumbersToggle.addEventListener('change', rerenderForDisplayChange);
+    inlineVerseNumbersToggle.addEventListener('change', () => {
+      updateUrlDisplayState();
+      updateInlineVerseNumberVisibility();
+      if (lastResultsData) {
+        renderResults(lastResultsData);
+      }
+    });
   }
 
   if (granularitySelect) {
     const syncGranularityDisplay = () => {
       updateUrlDisplayState();
+      syncInlineVerseRowDisplay();
       updateInlineVerseNumberVisibility();
+
+      const currentQuery = input?.value.trim() || '';
+      if (currentQuery) {
+        runSearch(looksLikeReferenceQuery(currentQuery) ? 'reference' : 'search');
+        return;
+      }
+
       if (lastResultsData) {
         renderResults(lastResultsData);
       }
@@ -1392,10 +1464,17 @@ document.addEventListener('DOMContentLoaded', () => {
   if (urlSettings.granularity) {
     granularitySelect.value = urlSettings.granularity;
   }
-  if (urlSettings.granularity === 'Passage' && urlSettings.newLineVerse) {
-    inlineVerseNumbersToggle.checked = true;
-  } else if (inlineVerseNumbersToggle) {
-    inlineVerseNumbersToggle.checked = false;
+  if (highlightToggle && new URLSearchParams(window.location.search).has('highlight')) {
+    highlightToggle.checked = urlSettings.highlight;
+  }
+  if (redLetterToggle && new URLSearchParams(window.location.search).has('showRedLetters')) {
+    redLetterToggle.checked = urlSettings.showRedLetters;
+  }
+  if (referenceLinkToggle && new URLSearchParams(window.location.search).has('showReferenceLinks')) {
+    referenceLinkToggle.checked = urlSettings.showReferenceLinks;
+  }
+  if (inlineVerseNumbersToggle) {
+    inlineVerseNumbersToggle.checked = Boolean(urlSettings.newLineVerse || inlineVerseNumbersToggle.checked);
   }
   updateInlineVerseNumberVisibility();
 

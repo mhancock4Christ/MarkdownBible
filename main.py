@@ -565,8 +565,8 @@ def resolve_reference_intent(query):
 def wildcard_to_regex(term):
     escaped = re.escape(term)
     if "*" in term:
-        return escaped.replace(r"\*", r"\S*")
-    return escaped + r"\S*"
+        return escaped.replace(r"\*", r"\w*")
+    return escaped
 
 
 def clean_text(text, suppress_paragraph):
@@ -583,25 +583,21 @@ def compile_search_regexes(search_text, search_mode, whole_word, case_sensitive)
     flags = 0 if case_sensitive else re.IGNORECASE
     regexes = []
 
+    def word_pattern(word):
+        pattern = wildcard_to_regex(word)
+        return r"\b" + pattern + r"\b"
+
     if search_mode == "Phrase":
         words = search_text.split()
         if not words:
             return []
 
-        if whole_word:
-            pattern_text = r"\b" + wildcard_to_regex(search_text) + r"\b"
-        else:
-            pattern_text = " ".join(
-                wildcard_to_regex(word) for word in words
-            )
-        regexes.append(re.compile(pattern_text, flags))
+        pattern_text = r"\s+".join(wildcard_to_regex(word) for word in words)
+        regexes.append(re.compile(r"\b" + pattern_text + r"\b", flags))
     else:
         words = search_text.split()
         for word in words:
-            pattern = wildcard_to_regex(word)
-            if whole_word:
-                pattern = r"\b" + pattern + r"\b"
-            regexes.append(re.compile(pattern, flags))
+            regexes.append(re.compile(word_pattern(word), flags))
 
     return regexes
 
