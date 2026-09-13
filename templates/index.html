@@ -135,12 +135,12 @@
                 </label>
 
                 <label id="referenceLinksRow" class="check-row">
-                  <input id="showReferenceLinks" type="checkbox" checked />
+                  <input id="showReferenceLinks" type="checkbox" />
                   <span>Reference links</span>
                 </label>
 
                 <label id="inlineVerseNumbersRow" class="check-row" hidden>
-                  <input id="showInlineVerseNumbers" type="checkbox" />
+                  <input id="showInlineVerseNumbers" type="checkbox" checked/>
                   <span>New Line Verse</span>
                 </label>
 
@@ -176,6 +176,6 @@
     <script>
       window.__INITIAL_QUERY__ = {{ initial_query|default('', true)|tojson }};
     </script>
-    <script src="/static/app.js?v=20260912-2"></script>
+    <script src="/static/app.js?v=20260912-4"></script>
   </body>
 </html>

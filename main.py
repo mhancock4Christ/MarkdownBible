@@ -1405,7 +1405,7 @@ def build_reading_link(reference: str, base_url: str | None = None) -> str:
 
     path = (
         f"/?q={quote_plus(chapter_query)}"
-        f"&granularity=Passage&newLineVerse=1&focus={quote_plus(clean_reference)}"
+        f"&granularity=Verse&newLineVerse=1&focus={quote_plus(clean_reference)}"
     )
     if base_url:
         base_url = str(base_url).rstrip("/")

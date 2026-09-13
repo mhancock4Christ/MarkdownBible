@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     url.pathname = '/';
     url.search = new URLSearchParams({
       q: chapterQuery,
-      granularity: 'Passage',
+      granularity: 'Verse',
       newLineVerse: '1',
       focus: query
     }).toString();
@@ -541,10 +541,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateDisplayOptionsVisibility() {
     const hasReadingView = Boolean(document.querySelector('.reading-view'));
+    const urlSettings = getUrlReadSettings();
     const isPassageMode = (granularitySelect?.value || 'Verse') === 'Passage';
     const highlightMatchesRow = document.getElementById('highlightMatchesRow');
     const referenceLinksRow = document.getElementById('referenceLinksRow');
-    const shouldShowInlineVerseNumbers = hasReadingView && isPassageMode;
+    const hasInlineVersePreference = Boolean(urlSettings.newLineVerse || (inlineVerseNumbersToggle && inlineVerseNumbersToggle.checked));
+    const shouldShowInlineVerseNumbers = hasReadingView && (isPassageMode || hasInlineVersePreference);
 
     if (highlightMatchesRow) {
       highlightMatchesRow.hidden = hasReadingView;
@@ -561,6 +563,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (inlineVerseNumbersToggle && !shouldShowInlineVerseNumbers) {
       inlineVerseNumbersToggle.checked = false;
     }
+  }
+
+  function updateUrlDisplayState() {
+    const params = new URLSearchParams(window.location.search);
+    const activeGranularity = granularitySelect?.value || 'Verse';
+    params.set('granularity', activeGranularity);
+
+    if (activeGranularity === 'Passage' && inlineVerseNumbersToggle && inlineVerseNumbersToggle.checked) {
+      params.set('newLineVerse', '1');
+    } else {
+      params.delete('newLineVerse');
+    }
+
+    const nextUrl = new URL(window.location.href);
+    nextUrl.search = params.toString();
+    window.history.replaceState({}, '', nextUrl.toString());
   }
 
   function updateInlineVerseNumberVisibility() {
@@ -582,7 +600,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     paragraphs.forEach((paragraph) => {
-      const paragraphEl = document.createElement(isPassageMode ? 'div' : 'p');
+      const paragraphEl = document.createElement('div');
       if (isPassageMode) {
         paragraphEl.classList.add('passage-mode');
         paragraphEl.style.marginBottom = '1.1rem';
@@ -611,6 +629,10 @@ document.addEventListener('DOMContentLoaded', () => {
           verseEl.style.margin = '0';
           verseEl.style.lineHeight = '1.7';
           verseEl.style.marginRight = useNewLineVerse ? '0' : '0.35em';
+        } else {
+          verseEl.style.display = 'block';
+          verseEl.style.margin = '0';
+          verseEl.style.lineHeight = '1.55';
         }
 
         if (verse?.verse !== undefined && verse?.verse !== null) {
@@ -625,7 +647,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const url = new URL(window.location.href);
             url.search = new URLSearchParams({
               q: chapterQuery,
-              granularity: 'Passage',
+              granularity: 'Verse',
               newLineVerse: '1',
               focus: verseReference
             }).toString();
@@ -976,11 +998,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (urlSettings.granularity === 'Passage') {
         granularitySelect.value = 'Passage';
       }
-      if (urlSettings.newLineVerse) {
+      if (urlSettings.granularity === 'Passage' && urlSettings.newLineVerse) {
         inlineVerseNumbersToggle.checked = true;
+      } else if (inlineVerseNumbersToggle) {
+        inlineVerseNumbersToggle.checked = false;
       }
       updateInlineVerseNumberVisibility();
       renderReadingView(data);
+      updateInlineVerseNumberVisibility();
       renderWildcardSummaryForReadingView(data);
       return;
     }
@@ -998,10 +1023,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const list = document.createElement('ul');
     const displayOptions = getDisplayOptions();
+    const focusReference = normalizeReferenceForUrl(getUrlReadSettings().focus || '');
 
     items.forEach((item) => {
       const li = document.createElement('li');
       const reference = item.reference || 'Reference';
+      const normalizedReference = normalizeReferenceForUrl(reference);
+      const isFocusedVerse = Boolean(focusReference) && normalizedReference === focusReference;
+      if (isFocusedVerse) {
+        li.classList.add('reading-verse-focus');
+      }
       const shouldLinkReference = Boolean(displayOptions.show_reference_links) && Boolean(item.reference);
       const referenceNode = shouldLinkReference ? document.createElement('a') : document.createElement('span');
 
@@ -1228,6 +1259,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const referenceLinkToggle = document.getElementById('showReferenceLinks');
 
   function rerenderForDisplayChange() {
+    updateUrlDisplayState();
     updateDisplayOptionsVisibility();
     if (lastResultsData) {
       renderResults(lastResultsData);
@@ -1252,6 +1284,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (granularitySelect) {
     const syncGranularityDisplay = () => {
+      updateUrlDisplayState();
       updateInlineVerseNumberVisibility();
       if (lastResultsData) {
         renderResults(lastResultsData);
@@ -1359,8 +1392,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if (urlSettings.granularity) {
     granularitySelect.value = urlSettings.granularity;
   }
-  if (urlSettings.newLineVerse) {
+  if (urlSettings.granularity === 'Passage' && urlSettings.newLineVerse) {
     inlineVerseNumbersToggle.checked = true;
+  } else if (inlineVerseNumbersToggle) {
+    inlineVerseNumbersToggle.checked = false;
   }
   updateInlineVerseNumberVisibility();
 

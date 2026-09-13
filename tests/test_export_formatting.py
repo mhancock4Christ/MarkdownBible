@@ -47,8 +47,8 @@ def test_markdown_text_uses_visible_highlight_formatting_and_web_link():
     assert "***the***" in result
     assert " Word" in result
     assert "[[John 1:1]]" in result
-    assert "[Web](https://example.com/?q=John+1&granularity=Passage&newLineVerse=1&focus=John+1%3A1)" in result
-    assert "[John 1:1](https://example.com/?q=John+1&granularity=Passage&newLineVerse=1&focus=John+1%3A1)" not in result
+    assert "[Web](https://example.com/?q=John+1&granularity=Verse&newLineVerse=1&focus=John+1%3A1)" in result
+    assert "[John 1:1](https://example.com/?q=John+1&granularity=Verse&newLineVerse=1&focus=John+1%3A1)" not in result
     assert "[[[John 1:1]]]" not in result
 
 
@@ -136,11 +136,11 @@ def test_xlsx_export_scopes_bold_to_exact_match_and_keeps_verse_plain():
     reference = item["reference"]
     ws.cell(row=row_num, column=1, value=reference)
     link_cell = ws.cell(row=row_num, column=2, value="Web")
-    link_cell.hyperlink = "http://127.0.0.1:8000/?q=Psalm+42&granularity=Passage&newLineVerse=1&focus=Psalm+42%3A20"
+    link_cell.hyperlink = "http://127.0.0.1:8000/?q=Psalm+42&granularity=Verse&newLineVerse=1&focus=Psalm+42%3A20"
     link_cell.style = "Hyperlink"
 
     assert ws["B2"].value == "Web"
-    assert ws["B2"].hyperlink.target == "http://127.0.0.1:8000/?q=Psalm+42&granularity=Passage&newLineVerse=1&focus=Psalm+42%3A20"
+    assert ws["B2"].hyperlink.target == "http://127.0.0.1:8000/?q=Psalm+42&granularity=Verse&newLineVerse=1&focus=Psalm+42%3A20"
 
 
 def test_reading_link_uses_absolute_domain_url():
@@ -163,9 +163,9 @@ def test_markdown_export_keeps_reference_plain_and_web_last():
 
     assert "[[Matthew 4.18]]" in result
     assert "***Peter***" in result
-    assert "[Web](http://127.0.0.1:8000/?q=Matthew+4&granularity=Passage&newLineVerse=1&focus=Matthew+4.18)" in result
+    assert "[Web](http://127.0.0.1:8000/?q=Matthew+4&granularity=Verse&newLineVerse=1&focus=Matthew+4.18)" in result
     assert "[[[Matthew 4.18]]]" not in result
-    assert "[Matthew 4.18](http://127.0.0.1:8000/?q=Matthew+4&granularity=Passage&newLineVerse=1&focus=Matthew+4.18)" not in result
+    assert "[Matthew 4.18](http://127.0.0.1:8000/?q=Matthew+4&granularity=Verse&newLineVerse=1&focus=Matthew+4.18)" not in result
 
 
 def test_markdown_export_uses_reference_without_verse_number_prefix_in_search_mode():
@@ -181,7 +181,7 @@ def test_markdown_export_uses_reference_without_verse_number_prefix_in_search_mo
 
     assert "John 1:1 In the beginning was the Word." in result
     assert "1. In the beginning" not in result
-    assert "[Web](https://example.com/?q=John+1&granularity=Passage&newLineVerse=1&focus=John+1%3A1)" in result
+    assert "[Web](https://example.com/?q=John+1&granularity=Verse&newLineVerse=1&focus=John+1%3A1)" in result
 
 
 def test_markdown_export_honors_reference_last_ordering_in_search_mode():
@@ -197,7 +197,7 @@ def test_markdown_export_honors_reference_last_ordering_in_search_mode():
 
     assert "In the beginning was the Word. John 1:1" in result
     assert "John 1:1 In the beginning" not in result
-    assert "[Web](https://example.com/?q=John+1&granularity=Passage&newLineVerse=1&focus=John+1%3A1)" in result
+    assert "[Web](https://example.com/?q=John+1&granularity=Verse&newLineVerse=1&focus=John+1%3A1)" in result
 
 
 def test_markdown_export_preserves_standard_reference_format_without_url_link():
@@ -212,7 +212,7 @@ def test_markdown_export_preserves_standard_reference_format_without_url_link():
 
     assert "Matthew 4:18" in result
     assert "[[Matthew 4:18]]" not in result
-    assert "[Matthew 4:18](http://127.0.0.1:8000/?q=Matthew+4&granularity=Passage&newLineVerse=1&focus=Matthew+4%3A18)" not in result
+    assert "[Matthew 4:18](http://127.0.0.1:8000/?q=Matthew+4&granularity=Verse&newLineVerse=1&focus=Matthew+4%3A18)" not in result
 
 
 def test_apostrophe_queries_force_sqlite_fallback():
