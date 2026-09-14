@@ -32,9 +32,39 @@ document.addEventListener('DOMContentLoaded', () => {
     48: 'Galatians', 49: 'Ephesians', 50: 'Philippians', 51: 'Colossians', 52: '1 Thessalonians', 53: '2 Thessalonians', 54: '1 Timothy', 55: '2 Timothy',
     56: 'Titus', 57: 'Philemon', 58: 'Hebrews', 59: 'James', 60: '1 Peter', 61: '2 Peter', 62: '1 John', 63: '2 John', 64: '3 John', 65: 'Jude', 66: 'Revelation'
   };
+  const BOOK_ALIASES = {
+    gen: 'Genesis', ge: 'Genesis', gn: 'Genesis', ex: 'Exodus', exo: 'Exodus', exod: 'Exodus',
+    lev: 'Leviticus', le: 'Leviticus', lv: 'Leviticus', num: 'Numbers', nu: 'Numbers', nm: 'Numbers',
+    deut: 'Deuteronomy', deu: 'Deuteronomy', dt: 'Deuteronomy', jos: 'Joshua', josh: 'Joshua',
+    jdg: 'Judges', jdgs: 'Judges', judg: 'Judges', jd: 'Judges', ruth: 'Ruth', ru: 'Ruth',
+    '1sam': '1 Samuel', '1 sam': '1 Samuel', '1sa': '1 Samuel', '2sam': '2 Samuel', '2 sam': '2 Samuel', '2sa': '2 Samuel',
+    '1ki': '1 Kings', '1 kgs': '1 Kings', '1kgs': '1 Kings', '1 kings': '1 Kings', '2ki': '2 Kings', '2 kgs': '2 Kings', '2kgs': '2 Kings', '2 kings': '2 Kings',
+    '1chr': '1 Chronicles', '1 chr': '1 Chronicles', '1ch': '1 Chronicles', '2chr': '2 Chronicles', '2 chr': '2 Chronicles', '2ch': '2 Chronicles',
+    ezr: 'Ezra', ezra: 'Ezra', ez: 'Ezra', neh: 'Nehemiah', ne: 'Nehemiah', est: 'Esther', esth: 'Esther',
+    job: 'Job', ps: 'Psalms', psa: 'Psalms', psalm: 'Psalms', psalms: 'Psalms', prov: 'Proverbs', pro: 'Proverbs', pr: 'Proverbs', prv: 'Proverbs',
+    eccl: 'Ecclesiastes', ecc: 'Ecclesiastes', ec: 'Ecclesiastes', song: 'Song of Solomon', 'song of songs': 'Song of Solomon', 'song of solomon': 'Song of Solomon', sos: 'Song of Solomon',
+    isa: 'Isaiah', is: 'Isaiah', jer: 'Jeremiah', je: 'Jeremiah', jr: 'Jeremiah', lam: 'Lamentations', la: 'Lamentations',
+    ezek: 'Ezekiel', eze: 'Ezekiel', ezk: 'Ezekiel', dan: 'Daniel', da: 'Daniel', dn: 'Daniel', hos: 'Hosea', ho: 'Hosea', joel: 'Joel', jl: 'Joel',
+    amos: 'Amos', am: 'Amos', obad: 'Obadiah', ob: 'Obadiah', oba: 'Obadiah', jon: 'Jonah', jnh: 'Jonah', mic: 'Micah', mc: 'Micah', nah: 'Nahum', na: 'Nahum',
+    hab: 'Habakkuk', hb: 'Habakkuk', zeph: 'Zephaniah', zep: 'Zephaniah', zp: 'Zephaniah', hag: 'Haggai', hg: 'Haggai', zech: 'Zechariah', zec: 'Zechariah', zc: 'Zechariah',
+    mal: 'Malachi', ml: 'Malachi', mat: 'Matthew', matt: 'Matthew', mt: 'Matthew', mrk: 'Mark', mar: 'Mark', mk: 'Mark', mr: 'Mark', luk: 'Luke', lk: 'Luke', lu: 'Luke',
+    jhn: 'John', jn: 'John', joh: 'John', act: 'Acts', acts: 'Acts', ac: 'Acts', rom: 'Romans', rm: 'Romans', ro: 'Romans',
+    '1cor': '1 Corinthians', '1 cor': '1 Corinthians', '1co': '1 Corinthians', '2cor': '2 Corinthians', '2 cor': '2 Corinthians', '2co': '2 Corinthians',
+    gal: 'Galatians', ga: 'Galatians', eph: 'Ephesians', ep: 'Ephesians', php: 'Philippians', phil: 'Philippians', phl: 'Philippians', col: 'Colossians', co: 'Colossians',
+    '1th': '1 Thessalonians', '1 th': '1 Thessalonians', '1thes': '1 Thessalonians', '1thess': '1 Thessalonians', '1 thess': '1 Thessalonians', '1 thes': '1 Thessalonians',
+    '2th': '2 Thessalonians', '2 th': '2 Thessalonians', '2thes': '2 Thessalonians', '2thess': '2 Thessalonians', '2 thess': '2 Thessalonians', '2 thes': '2 Thessalonians',
+    '1tim': '1 Timothy', '1 tim': '1 Timothy', '1ti': '1 Timothy', '2tim': '2 Timothy', '2 tim': '2 Timothy', '2ti': '2 Timothy', tit: 'Titus', ti: 'Titus',
+    phm: 'Philemon', philem: 'Philemon', pm: 'Philemon', heb: 'Hebrews', he: 'Hebrews', jas: 'James', jam: 'James', jm: 'James', js: 'James',
+    '1pet': '1 Peter', '1 pet': '1 Peter', '1pe': '1 Peter', '1pt': '1 Peter', '1 pt': '1 Peter', '1peter': '1 Peter', '2pet': '2 Peter', '2 pet': '2 Peter', '2pe': '2 Peter', '2pt': '2 Peter', '2 pt': '2 Peter', '2peter': '2 Peter',
+    '1jn': '1 John', '1 jn': '1 John', '1jhn': '1 John', '1jo': '1 John', '1j': '1 John', '2jn': '2 John', '2 jn': '2 John', '2jhn': '2 John', '2jo': '2 John', '2j': '2 John',
+    '3jn': '3 John', '3 jn': '3 John', '3jhn': '3 John', '3jo': '3 John', '3j': '3 John', jud: 'Jude', jude: 'Jude', rev: 'Revelation', re: 'Revelation', rv: 'Revelation'
+  };
   const BOOK_NUMBER_BY_NAME = Object.fromEntries(
     Object.entries(BOOK_NAME_BY_NUMBER).map(([num, name]) => [name.toLowerCase(), Number(num)])
   );
+  Object.entries(BOOK_ALIASES).forEach(([key, name]) => {
+    BOOK_NUMBER_BY_NAME[key.toLowerCase()] = BOOK_NUMBER_BY_NAME[name.toLowerCase()];
+  });
   let lastResultsData = null;
   let readingNavigationState = {
     entries: [],
@@ -50,11 +80,39 @@ document.addEventListener('DOMContentLoaded', () => {
     pendingBoundaryDirection: null
   };
   window.__READING_FOCUS_INITIALIZED__ = null;
+  window.__READING_FOCUS_SCROLL_INITIALIZED__ = false;
+  window.__LAST_SEARCH_QUERY__ = '';
+
+  function getReadingVerseElement(reference) {
+    const target = normalizeReferenceForUrl(reference);
+    if (!target) return null;
+
+    const match = target.match(/(.+?)\s+(\d+)\s*[:.]\s*(\d+)/);
+    if (!match) return null;
+
+    const bookName = match[1].trim();
+    const chapter = match[2];
+    const verse = match[3];
+    const bookNumber = bookNumberFromName(bookName);
+    if (!bookNumber || !chapter || !verse) return null;
+
+    const verseId = buildReadingVerseId(bookNumber, chapter, verse);
+    return document.getElementById(verseId);
+  }
 
   function normalizeReferenceForUrl(reference) {
     const query = typeof reference === 'string' ? reference.trim() : '';
     if (!query) return '';
-    return query.replace(/^\[\[|\]\]$/g, '').trim();
+
+    const cleaned = query.replace(/^\[\[|\]\]$/g, '').trim();
+    const match = cleaned.match(/^(.+?)\s+(\d+)\s*[:.]\s*(\d+)(?:\s*-\s*\d+)?$/i);
+    if (!match) return cleaned;
+
+    const bookName = match[1].trim();
+    const bookNumber = bookNumberFromName(bookName);
+    if (!bookNumber) return cleaned;
+    const canonicalBook = BOOK_NAME_BY_NUMBER[bookNumber] || bookName;
+    return `${canonicalBook} ${match[2]}:${match[3]}`;
   }
 
   function chapterReferenceForReadingUrl(reference) {
@@ -81,7 +139,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function bookNumberFromName(bookName) {
     if (!bookName) return null;
-    return BOOK_NUMBER_BY_NAME[String(bookName).trim().toLowerCase()] || null;
+    const value = String(bookName).trim();
+    const normalized = value.toLowerCase().replace(/\s+/g, ' ');
+    if (BOOK_NUMBER_BY_NAME[normalized]) return BOOK_NUMBER_BY_NAME[normalized];
+
+    const aliasValue = BOOK_ALIASES[normalized.replace(/\./g, '').replace(/\s+/g, '')];
+    if (aliasValue && BOOK_NUMBER_BY_NAME[aliasValue.toLowerCase()]) {
+      return BOOK_NUMBER_BY_NAME[aliasValue.toLowerCase()];
+    }
+
+    const compact = normalized.replace(/\s+/g, '');
+    for (const [name, number] of Object.entries(BOOK_NUMBER_BY_NAME)) {
+      if (name === normalized || name.replace(/\s+/g, '') === compact || name.startsWith(normalized) || name.replace(/\s+/g, '').startsWith(compact)) {
+        return number;
+      }
+    }
+    return null;
   }
 
   function buildReadingVerseId(book, chapter, verse) {
@@ -113,6 +186,53 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
+  function buildCanonicalUrlSearchParams(overrides = {}) {
+    const params = new URLSearchParams();
+    const currentParams = new URLSearchParams(window.location.search);
+    const rawQuery = overrides.q !== undefined ? overrides.q : (input ? input.value.trim() : '') || window.__INITIAL_QUERY__ || currentParams.get('q') || '';
+    const activeQuery = typeof rawQuery === 'string' ? rawQuery.trim() : '';
+    if (activeQuery) {
+      params.set('q', activeQuery);
+    }
+
+    const activeGranularity = overrides.granularity ?? (granularitySelect?.value || currentParams.get('granularity') || 'Verse');
+    params.set('granularity', activeGranularity);
+
+    const focusReference = normalizeReferenceForUrl(overrides.focus ?? currentParams.get('focus') ?? '');
+    const shouldKeepFocus = Boolean(focusReference);
+    if (shouldKeepFocus) {
+      params.set('focus', focusReference);
+    }
+
+    const activeReferenceStyle = overrides.reference_style ?? (referenceStyle ? referenceStyle.value : currentParams.get('reference_style') || 'Wikilink');
+    if (['Wikilink', 'Standard'].includes(activeReferenceStyle)) {
+      params.set('reference_style', activeReferenceStyle);
+    }
+
+    const activeReferencePosition = overrides.reference_position ?? (referencePosition ? referencePosition.value : currentParams.get('reference_position') || 'Ref First');
+    if (['Ref First', 'Ref Last'].includes(activeReferencePosition)) {
+      params.set('reference_position', activeReferencePosition);
+    }
+
+    const activeHighlight = overrides.highlight ?? (highlightToggle ? highlightToggle.checked : currentParams.get('highlight') === '1' || currentParams.get('highlight') === 'true');
+    params.set('highlight', activeHighlight ? '1' : '0');
+
+    const activeRedLetters = overrides.showRedLetters ?? (redLetterToggle ? redLetterToggle.checked : currentParams.get('showRedLetters') === '1' || currentParams.get('showRedLetters') === 'true');
+    params.set('showRedLetters', activeRedLetters ? '1' : '0');
+
+    const activeReferenceLinks = overrides.showReferenceLinks ?? (referenceLinkToggle ? referenceLinkToggle.checked : currentParams.get('showReferenceLinks') === '1' || currentParams.get('showReferenceLinks') === 'true');
+    params.set('showReferenceLinks', activeReferenceLinks ? '1' : '0');
+
+    const activeNewLineVerse = overrides.newLineVerse ?? (inlineVerseNumbersToggle ? inlineVerseNumbersToggle.checked : currentParams.get('newLineVerse') === '1' || currentParams.get('newLineVerse') === 'true');
+    if (activeGranularity === 'Passage' && activeNewLineVerse) {
+      params.set('newLineVerse', '1');
+    } else {
+      params.delete('newLineVerse');
+    }
+
+    return params;
+  }
+
   function buildReferenceUrl(reference) {
     const query = normalizeReferenceForUrl(reference);
     if (!query) return '#';
@@ -120,49 +240,88 @@ document.addEventListener('DOMContentLoaded', () => {
     const chapterQuery = chapterReferenceForReadingUrl(query) || query;
     const activeSettings = getCurrentDisplaySettings();
     const activeGranularity = activeSettings.granularity || 'Verse';
-    const showReferenceLinks = Boolean(activeSettings.showReferenceLinks);
-    const highlightMatches = Boolean(activeSettings.highlight);
-    const showRedLetters = Boolean(activeSettings.showRedLetters);
-    const useNewLineVerse = activeGranularity === 'Passage' && Boolean(activeSettings.newLineVerse);
-
     const url = new URL(window.location.href);
     url.pathname = '/';
-    const params = new URLSearchParams({
+    const params = buildCanonicalUrlSearchParams({
       q: chapterQuery,
       granularity: activeGranularity,
       focus: query,
-      showReferenceLinks: showReferenceLinks ? '1' : '0',
-      highlight: highlightMatches ? '1' : '0',
-      showRedLetters: showRedLetters ? '1' : '0'
+      reference_style: referenceStyle ? referenceStyle.value : undefined,
+      reference_position: referencePosition ? referencePosition.value : undefined,
+      highlight: activeSettings.highlight,
+      showRedLetters: activeSettings.showRedLetters,
+      showReferenceLinks: activeSettings.showReferenceLinks,
+      newLineVerse: activeSettings.newLineVerse
     });
-
-    if (useNewLineVerse) {
-      params.set('newLineVerse', '1');
-    } else if (activeGranularity === 'Passage') {
-      params.delete('newLineVerse');
-    }
 
     url.search = params.toString();
     return url.toString();
   }
 
+  function isReadingViewportMode(granularity = (granularitySelect?.value || 'Verse'), focusReference = getUrlReadSettings().focus || window.__READING_FOCUS_REF || '') {
+    return granularity === 'Passage' || (granularity === 'Verse' && Boolean(focusReference));
+  }
+
+  function shouldKeepReadingFocus(reference, granularity = (granularitySelect?.value || 'Verse'), options = {}) {
+    const normalized = normalizeReferenceForUrl(reference);
+    if (!normalized) {
+      return false;
+    }
+
+    const focusReference = normalizeReferenceForUrl(options?.focus || '');
+    if (!focusReference) {
+      return true;
+    }
+
+    if (granularity === 'Passage') {
+      return true;
+    }
+
+    return normalized === focusReference || focusReference === normalized;
+  }
+
   function normalizeInitialReadingQuery(rawQuery, readSettings = getUrlReadSettings()) {
     const query = typeof rawQuery === 'string' ? rawQuery.trim() : '';
     if (!query) return '';
-    if (readSettings.granularity !== 'Passage' || !readSettings.focus) return query;
+    if (!readSettings.focus || !['Passage', 'Verse'].includes(readSettings.granularity)) return query;
     const normalized = chapterReferenceForReadingUrl(query);
     return normalized || query;
   }
 
-  function getUrlReadSettings() {
+  function normalizeBooleanQueryValue(value, fallback = false) {
+    if (value === undefined || value === null || value === '') {
+      return Boolean(fallback);
+    }
+
+    const normalized = String(value).trim().toLowerCase();
+    if (normalized === '0' || normalized === 'false') {
+      return false;
+    }
+    if (normalized === '1' || normalized === 'true') {
+      return true;
+    }
+    return Boolean(fallback);
+  }
+
+  function getUrlReadSettings(defaults = {}) {
     const params = new URLSearchParams(window.location.search);
+    const fallbackGranularity = defaults.granularity ?? granularitySelect?.value ?? 'Verse';
+    const fallbackNewLineVerse = defaults.newLineVerse ?? Boolean(inlineVerseNumbersToggle ? inlineVerseNumbersToggle.checked : false);
+    const fallbackHighlight = defaults.highlight ?? Boolean(highlightToggle ? highlightToggle.checked : true);
+    const fallbackShowRedLetters = defaults.showRedLetters ?? Boolean(redLetterToggle ? redLetterToggle.checked : true);
+    const fallbackShowReferenceLinks = defaults.showReferenceLinks ?? Boolean(referenceLinkToggle ? referenceLinkToggle.checked : false);
+    const fallbackReferenceStyle = defaults.reference_style ?? (referenceStyle ? referenceStyle.value : 'Wikilink');
+    const fallbackReferencePosition = defaults.reference_position ?? (referencePosition ? referencePosition.value : 'Ref First');
+
     return {
-      granularity: params.get('granularity') || '',
-      newLineVerse: params.get('newLineVerse') === '1' || params.get('newLineVerse') === 'true',
-      focus: params.get('focus') || '',
-      showReferenceLinks: params.get('showReferenceLinks') === '1' || params.get('showReferenceLinks') === 'true',
-      highlight: params.get('highlight') === '1' || params.get('highlight') === 'true',
-      showRedLetters: params.get('showRedLetters') === '1' || params.get('showRedLetters') === 'true'
+      granularity: params.has('granularity') ? (params.get('granularity') || fallbackGranularity) : fallbackGranularity,
+      newLineVerse: params.has('newLineVerse') ? normalizeBooleanQueryValue(params.get('newLineVerse'), fallbackNewLineVerse) : fallbackNewLineVerse,
+      focus: params.has('focus') ? (params.get('focus') || '') : (defaults.focus || ''),
+      showReferenceLinks: params.has('showReferenceLinks') ? normalizeBooleanQueryValue(params.get('showReferenceLinks'), fallbackShowReferenceLinks) : fallbackShowReferenceLinks,
+      highlight: params.has('highlight') ? normalizeBooleanQueryValue(params.get('highlight'), fallbackHighlight) : fallbackHighlight,
+      showRedLetters: params.has('showRedLetters') ? normalizeBooleanQueryValue(params.get('showRedLetters'), fallbackShowRedLetters) : fallbackShowRedLetters,
+      reference_style: params.has('reference_style') ? (params.get('reference_style') || fallbackReferenceStyle) : fallbackReferenceStyle,
+      reference_position: params.has('reference_position') ? (params.get('reference_position') || fallbackReferencePosition) : fallbackReferencePosition
     };
   }
 
@@ -174,17 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
       el.classList.remove('reading-verse-focus');
     });
 
-    const match = target.match(/(.+?)\s+(\d+)\s*[:.]\s*(\d+)/);
-    if (!match) return;
-
-    const bookName = match[1].trim();
-    const chapter = match[2];
-    const verse = match[3];
-    const bookNumber = bookNumberFromName(bookName);
-    if (!bookNumber || !chapter || !verse) return;
-
-    const verseId = buildReadingVerseId(bookNumber, chapter, verse);
-    const verseEl = document.getElementById(verseId);
+    const verseEl = getReadingVerseElement(target);
     if (verseEl) {
       verseEl.classList.add('reading-verse-focus');
       window.__READING_FOCUS_REF = target;
@@ -196,21 +345,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const target = normalizeReferenceForUrl(reference);
     if (!target) return;
 
-    const match = target.match(/(.+?)\s+(\d+)\s*[:.]\s*(\d+)/);
-    if (!match) return;
-
-    const bookName = match[1].trim();
-    const chapter = match[2];
-    const verse = match[3];
-    const bookNumber = bookNumberFromName(bookName);
-    if (!bookNumber || !chapter || !verse) return;
-
-    const verseId = buildReadingVerseId(bookNumber, chapter, verse);
-    const verseEl = document.getElementById(verseId);
+    const verseEl = getReadingVerseElement(target);
     if (verseEl) {
       applyReadingVerseFocus(target);
       if (center) {
-        verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        verseEl.scrollIntoView({ behavior: 'auto', block: 'center' });
         verseEl.setAttribute('tabindex', '-1');
         verseEl.focus({ preventScroll: true });
       }
@@ -696,36 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateUrlDisplayState() {
-    const params = new URLSearchParams(window.location.search);
-    const activeGranularity = granularitySelect?.value || params.get('granularity') || 'Verse';
-    params.set('granularity', activeGranularity);
-
-    if (referenceStyle) {
-      params.set('reference_style', referenceStyle.value);
-    }
-
-    if (referencePosition) {
-      params.set('reference_position', referencePosition.value);
-    }
-
-    if (activeGranularity === 'Passage' && inlineVerseNumbersToggle && inlineVerseNumbersToggle.checked) {
-      params.set('newLineVerse', '1');
-    } else {
-      params.delete('newLineVerse');
-    }
-
-    if (highlightToggle) {
-      params.set('highlight', highlightToggle.checked ? '1' : '0');
-    }
-
-    if (redLetterToggle) {
-      params.set('showRedLetters', redLetterToggle.checked ? '1' : '0');
-    }
-
-    if (referenceLinkToggle) {
-      params.set('showReferenceLinks', referenceLinkToggle.checked ? '1' : '0');
-    }
-
+    const params = buildCanonicalUrlSearchParams();
     const nextUrl = new URL(window.location.href);
     nextUrl.search = params.toString();
     window.history.replaceState({}, '', nextUrl.toString());
@@ -746,7 +856,8 @@ document.addEventListener('DOMContentLoaded', () => {
     updateDisplayOptionsVisibility();
   }
 
-  function renderReadingVerseSegments(verse) {
+  function renderReadingVerseSegments(verse, options = {}) {
+    const showRedLetters = Boolean(options.showRedLetters ?? getUrlReadSettings().showRedLetters ?? true);
     const wrap = document.createElement('span');
     const segments = Array.isArray(verse?.segments) ? verse.segments : [];
 
@@ -772,7 +883,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (bracketed) {
           el.classList.add('bracketed-phrase');
         }
-        if (segment.red) {
+        if (showRedLetters && segment.red) {
           el.classList.add('red-letter');
         }
         el.textContent = partText;
@@ -862,7 +973,7 @@ document.addEventListener('DOMContentLoaded', () => {
           verseEl.appendChild(verseNumber);
         }
 
-        const textWrap = renderReadingVerseSegments(verse);
+        const textWrap = renderReadingVerseSegments(verse, { showRedLetters: getUrlReadSettings().showRedLetters });
         verseEl.appendChild(textWrap);
 
         paragraphEl.appendChild(verseEl);
@@ -916,9 +1027,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const focusReference = getUrlReadSettings().focus || window.__READING_FOCUS_REF || '';
     if (focusReference) {
+      const shouldCenterOnLoad = !window.__READING_FOCUS_SCROLL_INITIALIZED__ && window.__READING_FOCUS_INITIALIZED__ !== focusReference;
       window.__READING_FOCUS_INITIALIZED__ = focusReference;
       window.__READING_FOCUS_REF = focusReference;
       applyReadingVerseFocus(focusReference);
+      if (shouldCenterOnLoad) {
+        requestAnimationFrame(() => {
+          scrollReadingVerseIntoView(focusReference, { center: true });
+          window.__READING_FOCUS_SCROLL_INITIALIZED__ = true;
+        });
+      }
     }
   }
 
@@ -1182,7 +1300,41 @@ document.addEventListener('DOMContentLoaded', () => {
     results.innerHTML = '';
 
     const isPassageMode = (granularitySelect?.value || 'Verse') === 'Passage';
-    if (data && data.recommended_view === 'reading' && Array.isArray(data.reading_items) && data.reading_items.length && isPassageMode) {
+    const activeGranularity = granularitySelect?.value || 'Verse';
+    const activeFocusReference = getUrlReadSettings().focus || window.__READING_FOCUS_REF || '';
+    const isReadingMode = Boolean(data && data.recommended_view === 'reading' && Array.isArray(data.reading_items) && data.reading_items.length && isPassageMode);
+    if (isReadingMode) {
+      const queryReference = normalizeReferenceForUrl(
+        (input && input.value.trim()) ||
+        window.__LAST_SEARCH_QUERY__ ||
+        window.__INITIAL_QUERY__ ||
+        new URLSearchParams(window.location.search).get('q') ||
+        ''
+      );
+      const isSingleVerseReference = Boolean(queryReference) && /^.+\s+\d+\s*[:.]\s*\d+\s*$/i.test(queryReference);
+
+      if (isSingleVerseReference) {
+        const chapterQuery = chapterReferenceForReadingUrl(queryReference) || queryReference;
+        const nextParams = new URLSearchParams({
+          q: chapterQuery,
+          granularity: activeGranularity,
+          focus: queryReference,
+          showRedLetters: String(Boolean(getCurrentDisplaySettings().showRedLetters)),
+          reference_style: String(referenceStyle ? referenceStyle.value : 'Wikilink'),
+          reference_position: String(referencePosition ? referencePosition.value : 'Ref First'),
+          highlight: String(Boolean(highlightToggle ? highlightToggle.checked : true)),
+          showReferenceLinks: String(Boolean(referenceLinkToggle ? referenceLinkToggle.checked : false))
+        });
+        if (activeGranularity === 'Passage') {
+          nextParams.set('newLineVerse', String(Boolean(inlineVerseNumbersToggle ? inlineVerseNumbersToggle.checked : getUrlReadSettings().newLineVerse)));
+        }
+
+        window.history.replaceState({}, '', `${window.location.pathname}?${nextParams.toString()}`);
+        window.__READING_FOCUS_INITIALIZED__ = null;
+        window.__READING_FOCUS_SCROLL_INITIALIZED__ = false;
+        window.__READING_FOCUS_REF = queryReference;
+      }
+
       const urlSettings = getUrlReadSettings();
       if (urlSettings.granularity === 'Passage') {
         granularitySelect.value = 'Passage';
@@ -1210,16 +1362,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const list = document.createElement('ul');
     const displayOptions = getDisplayOptions();
-    const focusReference = normalizeReferenceForUrl(getUrlReadSettings().focus || '');
+    const queryReference = normalizeReferenceForUrl(
+      (input && input.value.trim()) ||
+      window.__LAST_SEARCH_QUERY__ ||
+      window.__INITIAL_QUERY__ ||
+      new URLSearchParams(window.location.search).get('q') ||
+      ''
+    );
+    const isSingleVerseReference = Boolean(queryReference) && /^.+\s+\d+\s*[:.]\s*\d+\s*$/i.test(queryReference);
+    const focusReference = normalizeReferenceForUrl(getUrlReadSettings().focus || '') || (isSingleVerseReference ? queryReference : '');
     const itemReferencePosition = getReferencePositionValue();
 
     items.forEach((item) => {
       const li = document.createElement('li');
       const reference = item.reference || 'Reference';
       const normalizedReference = normalizeReferenceForUrl(reference);
+      li.dataset.reference = normalizedReference;
       const isFocusedVerse = Boolean(focusReference) && normalizedReference === focusReference;
       if (isFocusedVerse) {
         li.classList.add('reading-verse-focus');
+        li.tabIndex = -1;
       }
       const shouldLinkReference = Boolean(displayOptions.show_reference_links) && Boolean(item.reference);
       const referenceNode = shouldLinkReference ? document.createElement('a') : document.createElement('span');
@@ -1254,6 +1416,24 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       list.appendChild(li);
     });
+
+    const focusedResult = focusReference
+      ? Array.from(list.querySelectorAll('li')).find((li) => normalizeReferenceForUrl(li.dataset.reference || '') === focusReference)
+      : null;
+    if (focusedResult) {
+      window.__READING_FOCUS_INITIALIZED__ = focusReference;
+      window.__READING_FOCUS_REF = focusReference;
+      const shouldCenterOnLoad = !window.__READING_FOCUS_SCROLL_INITIALIZED__ || window.__READING_FOCUS_INITIALIZED__ !== focusReference;
+      if (shouldCenterOnLoad) {
+        requestAnimationFrame(() => {
+          const currentMatch = Array.from(list.querySelectorAll('li')).find((li) => normalizeReferenceForUrl(li.dataset.reference || '') === focusReference);
+          if (!currentMatch) return;
+          currentMatch.scrollIntoView({ behavior: 'auto', block: 'center' });
+          currentMatch.focus({ preventScroll: true });
+          window.__READING_FOCUS_SCROLL_INITIALIZED__ = true;
+        });
+      }
+    }
 
     results.appendChild(list);
   }
@@ -1413,6 +1593,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    window.__LAST_SEARCH_QUERY__ = query;
     const options = getSearchOptions();
 
     setLoading(true);
@@ -1456,6 +1637,14 @@ document.addEventListener('DOMContentLoaded', () => {
     updateUrlDisplayState();
     updateDisplayOptionsVisibility();
     if (lastResultsData) {
+      const isReadingView = Boolean(document.querySelector('.reading-view')) || lastResultsData?.recommended_view === 'reading';
+      if (isReadingView) {
+        const activeQuery = (input && input.value.trim()) || window.__INITIAL_QUERY__ || new URLSearchParams(window.location.search).get('q') || '';
+        if (activeQuery) {
+          runSearch(looksLikeReferenceQuery(activeQuery) ? 'reference' : 'search');
+          return;
+        }
+      }
       renderResults(applyReferenceModeToData({ ...lastResultsData }));
     }
   }
@@ -1605,9 +1794,18 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const initialQuery = window.__INITIAL_QUERY__ || new URLSearchParams(window.location.search).get('q') || '';
-  const urlSettings = getUrlReadSettings();
+  const defaultReadSettings = {
+    granularity: granularitySelect ? granularitySelect.value : 'Verse',
+    highlight: Boolean(highlightToggle ? highlightToggle.checked : true),
+    showRedLetters: Boolean(redLetterToggle ? redLetterToggle.checked : true),
+    showReferenceLinks: Boolean(referenceLinkToggle ? referenceLinkToggle.checked : false),
+    newLineVerse: Boolean(inlineVerseNumbersToggle ? inlineVerseNumbersToggle.checked : false),
+    reference_style: referenceStyle ? referenceStyle.value : 'Wikilink',
+    reference_position: referencePosition ? referencePosition.value : 'Ref First'
+  };
+  const urlSettings = getUrlReadSettings(defaultReadSettings);
   const normalizedInitialQuery = normalizeInitialReadingQuery(initialQuery, urlSettings);
-  if (urlSettings.granularity) {
+  if (granularitySelect && urlSettings.granularity) {
     granularitySelect.value = urlSettings.granularity;
   }
   if (highlightToggle && new URLSearchParams(window.location.search).has('highlight')) {
@@ -1631,8 +1829,8 @@ document.addEventListener('DOMContentLoaded', () => {
       referencePosition.value = referencePositionQuery;
     }
   }
-  if (inlineVerseNumbersToggle) {
-    inlineVerseNumbersToggle.checked = Boolean(urlSettings.newLineVerse || inlineVerseNumbersToggle.checked);
+  if (inlineVerseNumbersToggle && new URLSearchParams(window.location.search).has('newLineVerse')) {
+    inlineVerseNumbersToggle.checked = Boolean(urlSettings.newLineVerse);
   }
   updateInlineVerseNumberVisibility();
 

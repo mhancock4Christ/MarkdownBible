@@ -528,6 +528,24 @@ def extract_references_from_text(text):
     return parsed_refs
 
 
+def build_reference_search_targets(parsed_refs):
+    if not parsed_refs:
+        return []
+
+    if len(parsed_refs) != 1:
+        return parsed_refs
+
+    ref = dict(parsed_refs[0])
+    if ref.get("chapter") is None:
+        return parsed_refs
+    if ref.get("verse_start") is None or ref.get("verse_end") is not None:
+        return parsed_refs
+
+    ref["verse_start"] = None
+    ref["verse_end"] = None
+    return [ref]
+
+
 def resolve_reference_intent(query):
     query = query.strip()
 
@@ -1570,12 +1588,13 @@ async def search(payload: SearchRequest):
 
         elif mode == "reference":
             parsed_refs = inferred["references"]
-            
+
             if not parsed_refs:
                 raise HTTPException(status_code=400, detail="No valid references found.")
 
+            target_refs = build_reference_search_targets(parsed_refs)
             all_rows = []
-            for parsed in parsed_refs:
+            for parsed in target_refs:
                 all_rows.extend(get_reference_rows(cur, parsed))
 
             seen = set()
@@ -1593,8 +1612,9 @@ async def search(payload: SearchRequest):
             extracted_refs = inferred["references"]
 
             if payload.lookup_extracted and extracted_refs:
+                target_refs = build_reference_search_targets(extracted_refs)
                 all_rows = []
-                for parsed in extracted_refs:
+                for parsed in target_refs:
                     all_rows.extend(get_reference_rows(cur, parsed))
 
                 seen = set()

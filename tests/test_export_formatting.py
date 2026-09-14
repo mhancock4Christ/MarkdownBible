@@ -17,6 +17,7 @@ from main import (
     build_passage_items,
     build_reading_link,
     build_reading_link,
+    build_reference_search_targets,
     build_xlsx_rich_text,
     can_use_fts,
     get_sqlite_text_rows,
@@ -67,6 +68,26 @@ def test_split_paragraphs_from_rows_starts_new_block_for_leading_paragraph_marke
     assert len(paragraphs) == 2
     assert [verse["verse"] for verse in paragraphs[0]] == [21]
     assert [verse["verse"] for verse in paragraphs[1]] == [22, 23]
+
+
+def test_single_reference_expands_to_chapter_context_but_keeps_verse_focus():
+    refs = [{
+        "book_name": "John",
+        "book_num": 43,
+        "chapter": 1,
+        "verse_start": 16,
+        "verse_end": None,
+    }]
+
+    expanded = build_reference_search_targets(refs)
+
+    assert expanded == [{
+        "book_name": "John",
+        "book_num": 43,
+        "chapter": 1,
+        "verse_start": None,
+        "verse_end": None,
+    }]
 
 
 def test_exact_word_search_excludes_longer_words_by_default():
