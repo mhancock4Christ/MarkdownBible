@@ -576,6 +576,15 @@ def clean_text(text, suppress_paragraph):
     return text
 
 
+def split_paragraph_parts(text, suppress_paragraph=False):
+    parts = []
+    for raw_part in str(text).split("¶"):
+        clean_part = clean_text(raw_part, suppress_paragraph)
+        if clean_part:
+            parts.append(clean_part)
+    return parts
+
+
 def compile_search_regexes(search_text, search_mode, whole_word, case_sensitive):
     if not search_text:
         return []
@@ -911,7 +920,8 @@ def normalize_row(row, suppress_paragraph):
         "chapter": int(row[COL_CHAPTER]),
         "verse": int(row[COL_VERSE]),
         "text": row[COL_TEXT],
-        "cleaned_text": clean_text(row[COL_TEXT], suppress_paragraph)
+        "cleaned_text": clean_text(row[COL_TEXT], suppress_paragraph),
+        "suppress_paragraph": bool(suppress_paragraph)
     }
 
 
@@ -967,10 +977,8 @@ def build_passage_items(rows, reference_style, reference_position, regexes, do_h
 
         paragraph_segments = []
         for row in group:
-            for part in row["cleaned_text"].split("¶"):
-                clean_part = part.strip()
-                if clean_part:
-                    paragraph_segments.append(clean_part)
+            for part in split_paragraph_parts(row["text"], row.get("suppress_paragraph", False)):
+                paragraph_segments.append(part)
 
         passage_text_raw = "\n\n".join(paragraph_segments).strip()
         passage_text_clean = passage_text_raw.replace("‹", "").replace("›", "")
@@ -1001,11 +1009,15 @@ def split_paragraphs_from_rows(rows, show_red_letters):
     current = []
 
     for row in rows:
-        text = row["cleaned_text"]
-        parts = text.split("¶")
+        raw_text = row.get("text", row.get("cleaned_text", ""))
+        parts = str(raw_text).split("¶")
 
         for idx, part in enumerate(parts):
-            part = part.strip()
+            if idx > 0 and current and "¶" in str(row.get("text", row.get("cleaned_text", ""))):
+                paragraphs.append(current)
+                current = []
+
+            part = clean_text(part, row.get("suppress_paragraph", False)).strip()
             if not part:
                 continue
 
@@ -1016,7 +1028,7 @@ def split_paragraphs_from_rows(rows, show_red_letters):
                 current.append({
                     "verse": row["verse"],
                     "text": clean_plain,
-                    "segments": parse_red_letter_segments(part, show_red_letters)
+                    "segments": segments
                 })
 
             if idx < len(parts) - 1:

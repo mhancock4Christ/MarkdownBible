@@ -253,6 +253,99 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
+  function getReferenceStyleValue() {
+    return referenceStyle ? referenceStyle.value : 'Wikilink';
+  }
+
+  function getReferencePositionValue() {
+    return referencePosition ? referencePosition.value : 'Ref First';
+  }
+
+  function parseReferenceParts(referenceText) {
+    const value = typeof referenceText === 'string' ? referenceText.trim() : '';
+    if (!value) return null;
+
+    const cleaned = value.replace(/^\[\[|\]\]$/g, '').trim();
+    if (!cleaned) return null;
+
+    const match = cleaned.match(/^(.+?)\s+(\d+)(?:\s*[:.]\s*(\d+)(?:\s*-\s*(\d+))?)?$/i);
+    if (!match) return null;
+
+    const [, bookName, chapterText, verseStartText, verseEndText] = match;
+    const chapter = Number(chapterText);
+    const verseStart = verseStartText ? Number(verseStartText) : null;
+    const verseEnd = verseEndText ? Number(verseEndText) : verseStart;
+
+    if (!Number.isFinite(chapter) || (verseStart !== null && !Number.isFinite(verseStart))) {
+      return null;
+    }
+
+    return {
+      bookName: bookName.trim(),
+      chapter,
+      verseStart,
+      verseEnd
+    };
+  }
+
+  function buildReferenceTextFromParts(parts, styleValue) {
+    if (!parts || !parts.bookName) return '';
+
+    const style = styleValue === 'Standard' ? 'Standard' : 'Wikilink';
+    const chapter = Number(parts.chapter);
+    const verseStart = parts.verseStart !== null ? Number(parts.verseStart) : null;
+    const verseEnd = parts.verseEnd !== null ? Number(parts.verseEnd) : verseStart;
+
+    if (!Number.isFinite(chapter) || (verseStart !== null && !Number.isFinite(verseStart))) {
+      return '';
+    }
+
+    if (style === 'Wikilink') {
+      if (verseStart !== null && verseEnd !== null && verseStart !== verseEnd) {
+        return `[[${parts.bookName} ${chapter}.${verseStart}-${verseEnd}]]`;
+      }
+      if (verseStart !== null) {
+        return `[[${parts.bookName} ${chapter}.${verseStart}]]`;
+      }
+      return `[[${parts.bookName} ${chapter}]]`;
+    }
+
+    if (verseStart !== null && verseEnd !== null && verseStart !== verseEnd) {
+      return `${parts.bookName} ${chapter}:${verseStart}-${verseEnd}`;
+    }
+    if (verseStart !== null) {
+      return `${parts.bookName} ${chapter}:${verseStart}`;
+    }
+    return `${parts.bookName} ${chapter}`;
+  }
+
+  function applyReferenceModeToData(data) {
+    if (!data) return data;
+
+    const styleValue = getReferenceStyleValue();
+    const positionValue = getReferencePositionValue();
+
+    if (Array.isArray(data.items)) {
+      data.items = data.items.map((item) => {
+        const parts = parseReferenceParts(item?.reference || '');
+        return {
+          ...item,
+          reference: buildReferenceTextFromParts(parts, styleValue) || item.reference || '',
+          reference_position: positionValue
+        };
+      });
+    }
+
+    if (Array.isArray(data.reading_items)) {
+      data.reading_items = data.reading_items.map((item) => ({
+        ...item,
+        reference: buildReferenceTextFromParts(parseReferenceParts(item?.reference || ''), styleValue) || item.reference || '',
+      }));
+    }
+
+    return data;
+  }
+
   function getDisplayOptions() {
     const highlightCheckbox = document.getElementById('highlightMatches');
     const redLetterCheckbox = document.getElementById('showRedLetters');
@@ -607,6 +700,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeGranularity = granularitySelect?.value || params.get('granularity') || 'Verse';
     params.set('granularity', activeGranularity);
 
+    if (referenceStyle) {
+      params.set('reference_style', referenceStyle.value);
+    }
+
+    if (referencePosition) {
+      params.set('reference_position', referencePosition.value);
+    }
+
     if (activeGranularity === 'Passage' && inlineVerseNumbersToggle && inlineVerseNumbersToggle.checked) {
       params.set('newLineVerse', '1');
     } else {
@@ -643,6 +744,43 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateInlineVerseNumberVisibility() {
     syncInlineVerseToggleFromUrl();
     updateDisplayOptionsVisibility();
+  }
+
+  function renderReadingVerseSegments(verse) {
+    const wrap = document.createElement('span');
+    const segments = Array.isArray(verse?.segments) ? verse.segments : [];
+
+    if (!segments.length) {
+      const parts = splitBracketedText(String(verse?.text ?? ''));
+      parts.forEach(({ text: partText, bracketed }) => {
+        const el = document.createElement('span');
+        if (bracketed) {
+          el.classList.add('bracketed-phrase');
+        }
+        el.textContent = partText;
+        wrap.appendChild(el);
+      });
+      return wrap;
+    }
+
+    segments.forEach((segment) => {
+      const segmentText = String(segment?.text ?? '');
+      if (!segmentText) return;
+
+      splitBracketedText(segmentText).forEach(({ text: partText, bracketed }) => {
+        const el = document.createElement('span');
+        if (bracketed) {
+          el.classList.add('bracketed-phrase');
+        }
+        if (segment.red) {
+          el.classList.add('red-letter');
+        }
+        el.textContent = partText;
+        wrap.appendChild(el);
+      });
+    });
+
+    return wrap;
   }
 
   function renderReadingParagraphs(item) {
@@ -724,16 +862,7 @@ document.addEventListener('DOMContentLoaded', () => {
           verseEl.appendChild(verseNumber);
         }
 
-        const textWrap = document.createElement('span');
-        const parts = splitBracketedText(verseText);
-        parts.forEach(({ text: partText, bracketed }) => {
-          const verseContent = document.createElement('span');
-          if (bracketed) {
-            verseContent.classList.add('bracketed-phrase');
-          }
-          verseContent.textContent = partText;
-          textWrap.appendChild(verseContent);
-        });
+        const textWrap = renderReadingVerseSegments(verse);
         verseEl.appendChild(textWrap);
 
         paragraphEl.appendChild(verseEl);
@@ -1082,6 +1211,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const list = document.createElement('ul');
     const displayOptions = getDisplayOptions();
     const focusReference = normalizeReferenceForUrl(getUrlReadSettings().focus || '');
+    const itemReferencePosition = getReferencePositionValue();
 
     items.forEach((item) => {
       const li = document.createElement('li');
@@ -1113,9 +1243,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const separator = document.createTextNode(' — ');
       verse.appendChild(createStyledVerseNode(item, displayOptions));
 
-      li.appendChild(referenceNode);
-      li.appendChild(separator);
-      li.appendChild(verse);
+      if (itemReferencePosition === 'Ref Last') {
+        li.appendChild(verse);
+        li.appendChild(separator);
+        li.appendChild(referenceNode);
+      } else {
+        li.appendChild(referenceNode);
+        li.appendChild(separator);
+        li.appendChild(verse);
+      }
       list.appendChild(li);
     });
 
@@ -1320,7 +1456,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateUrlDisplayState();
     updateDisplayOptionsVisibility();
     if (lastResultsData) {
-      renderResults(lastResultsData);
+      renderResults(applyReferenceModeToData({ ...lastResultsData }));
     }
   }
 
@@ -1334,6 +1470,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (referenceLinkToggle) {
     referenceLinkToggle.addEventListener('change', rerenderForDisplayChange);
+  }
+
+  if (referenceStyle) {
+    referenceStyle.addEventListener('change', rerenderForDisplayChange);
+    referenceStyle.addEventListener('input', rerenderForDisplayChange);
+  }
+
+  if (referencePosition) {
+    referencePosition.addEventListener('change', rerenderForDisplayChange);
+    referencePosition.addEventListener('input', rerenderForDisplayChange);
   }
 
   if (inlineVerseNumbersToggle) {
@@ -1472,6 +1618,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (referenceLinkToggle && new URLSearchParams(window.location.search).has('showReferenceLinks')) {
     referenceLinkToggle.checked = urlSettings.showReferenceLinks;
+  }
+  if (referenceStyle) {
+    const referenceStyleQuery = new URLSearchParams(window.location.search).get('reference_style');
+    if (referenceStyleQuery && ['Wikilink', 'Standard'].includes(referenceStyleQuery)) {
+      referenceStyle.value = referenceStyleQuery;
+    }
+  }
+  if (referencePosition) {
+    const referencePositionQuery = new URLSearchParams(window.location.search).get('reference_position');
+    if (referencePositionQuery && ['Ref First', 'Ref Last'].includes(referencePositionQuery)) {
+      referencePosition.value = referencePositionQuery;
+    }
   }
   if (inlineVerseNumbersToggle) {
     inlineVerseNumbersToggle.checked = Boolean(urlSettings.newLineVerse || inlineVerseNumbersToggle.checked);

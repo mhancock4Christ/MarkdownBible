@@ -14,10 +14,14 @@ from main import (
     export_txt,
     export_xlsx,
     build_markdown_text,
+    build_passage_items,
+    build_reading_link,
     build_reading_link,
     build_xlsx_rich_text,
     can_use_fts,
     get_sqlite_text_rows,
+    normalize_row,
+    split_paragraphs_from_rows,
     write_docx_runs,
 )
 
@@ -33,6 +37,36 @@ def test_export_endpoints_reject_empty_items():
         asyncio.run(export_docx(None, []))
     with pytest.raises(HTTPException, match="No results to export"):
         asyncio.run(export_xlsx(None, []))
+
+
+def test_passage_items_split_on_paragraph_mark_before_stripping():
+    rows = [
+        normalize_row({
+            "ID": 1,
+            "book": 40,
+            "chapter": 1,
+            "verse": 1,
+            "text": "This is the first paragraph.¶This is the second paragraph.",
+        }, suppress_paragraph=True)
+    ]
+
+    items = build_passage_items(rows, "Standard", "Ref First", [], False, False)
+
+    assert items[0]["verse_text"] == "This is the first paragraph.\n\nThis is the second paragraph."
+
+
+def test_split_paragraphs_from_rows_starts_new_block_for_leading_paragraph_marker():
+    rows = [
+        {"verse": 21, "text": "He did the truth.", "cleaned_text": "He did the truth.", "suppress_paragraph": True},
+        {"verse": 22, "text": "¶ After these things came Jesus.", "cleaned_text": "After these things came Jesus.", "suppress_paragraph": True},
+        {"verse": 23, "text": "And John also was baptizing.", "cleaned_text": "And John also was baptizing.", "suppress_paragraph": True},
+    ]
+
+    paragraphs = split_paragraphs_from_rows(rows, False)
+
+    assert len(paragraphs) == 2
+    assert [verse["verse"] for verse in paragraphs[0]] == [21]
+    assert [verse["verse"] for verse in paragraphs[1]] == [22, 23]
 
 
 def test_exact_word_search_excludes_longer_words_by_default():
