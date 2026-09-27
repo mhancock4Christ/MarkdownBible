@@ -129,10 +129,29 @@ BOOK_GROUPS = {
     "Epistles": [45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65],
 }
 
+# 1. Keep the template/static directory base pointing to the runtime extraction folder
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "kjv.sqlite")
 
-app = FastAPI(title="KJV Bible Search Web")
+# 2. Add this logic to find the true folder where the .exe file lives
+if hasattr(sys, '_MEIPASS'):
+    # Running as compiled EXE: look in the folder containing the EXE file
+    EXE_DIR = os.path.dirname(sys.executable)
+else:
+    # Running as normal script: look in the script folder
+    EXE_DIR = BASE_DIR
+
+# 3. Change DB_PATH to use the true EXE directory
+DB_PATH = os.path.join(EXE_DIR, "kjv.sqlite")
+
+# Leave your FastAPI and Jinja configuration as they are (they still use BASE_DIR):
+app = FastAPI(title="Markdown Bible")
+from fastapi.responses import FileResponse
+
+@app.get('/favicon.ico', include_in_schema=False)
+async def favicon():
+    # Serves the icon to the browser tab
+    return FileResponse(os.path.join(BASE_DIR, "static", "icon.ico")) 
+
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
@@ -1798,14 +1817,25 @@ async def help_page(request: Request):
 if __name__ == "__main__":
     import uvicorn
     import webbrowser
+    import os
+    import sys
     from threading import Timer
 
+    # Kill any existing running instances of this executable to avoid port conflicts
+    if hasattr(sys, '_MEIPASS'):
+        current_exe_name = os.path.basename(sys.executable) # "MarkdownBible.exe"
+        current_pid = os.getpid()
+        
+        # Command to terminate other instances with the same filename, ignoring our current PID
+        # /F forces termination, /IM specifies the image name
+        cmd = f'taskkill /F /IM "{current_exe_name}" /FI "PID ne {current_pid}" >nul 2>&1'
+        os.system(cmd)
+
     def open_browser():
-        # Automatically opens the app in the user's default browser
         webbrowser.open("http://127.0.0.1:5000")
 
-    # Give the server 1.5 seconds to start up, then launch the browser
+    # Give the server a brief moment to clear the port and start up
     Timer(1.5, open_browser).start()
     
-    # Run the FastAPI server natively inside the executable
-    uvicorn.run(app, host="127.0.0.1", port=5000, log_level="info")
+    # Run the server silently without standard window logging
+    uvicorn.run(app, host="127.0.0.1", port=5000, log_config=None)

@@ -131,7 +131,13 @@ BOOK_GROUPS = {
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "kjv.sqlite")
 
-app = FastAPI(title="KJV Bible Search Web")
+app = FastAPI(title="Markdown Bible")
+from fastapi.responses import FileResponse
+
+@app.get('/favicon.ico', include_in_schema=False)
+async def favicon():
+    # Serves the icon to the browser tab
+    return FileResponse(os.path.join(BASE_DIR, "static", "icon.ico")) 
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 

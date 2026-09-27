@@ -32,7 +32,7 @@ echo.
 
 :: Run PyInstaller using the virtual environment bundle
 echo [2/4] Compiling main.py using .venv binaries...
-"%VENV_PYINSTALLER%" --onefile --add-data "templates;templates" --add-data "static;static" main_Local.py
+"%VENV_PYINSTALLER%" --onefile --windowed --icon="icon.ico" --add-data "icon.ico;." --add-data "templates;templates" --add-data "static;static" main_Local.py
 if %errorlevel% neq 0 (
     echo.
     echo [ERROR] PyInstaller compilation failed!
@@ -47,7 +47,7 @@ if not exist "MarkdownBible-Portable" mkdir "MarkdownBible-Portable"
 
 :: Copy the compiled EXE and the SQLite database into the folder
 echo [4/4] Copying assets into distribution folder...
-copy /Y "dist\main.exe" "MarkdownBible-Portable\MarkdownBible.exe" >nul
+copy /Y "dist\main_Local.exe" "MarkdownBible-Portable\MarkdownBible.exe" >nul
 if exist "kjv.sqlite" (
     copy /Y "kjv.sqlite" "MarkdownBible-Portable\kjv.sqlite" >nul
     echo Data file integrated successfully.
