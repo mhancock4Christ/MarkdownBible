@@ -112,9 +112,73 @@ test('HTML defaults remain active when the URL omits a setting', () => {
   assert.equal(settings.reference_position, 'Ref Last');
 });
 
-test('reading view stays in Passage mode and does not trigger from Verse focus alone', () => {
-  const gate = source.includes("Array.isArray(data.reading_items) && data.reading_items.length && isPassageMode");
-  assert.equal(gate, true, 'Verse mode should not turn on reading view simply because focus is set');
+test('contiguous references use reading layout only in Passage mode', () => {
+  const start = source.indexOf('function shouldRenderReadingView');
+  const end = source.indexOf('\n  function ', start + 1);
+  assert.notStrictEqual(start, -1, 'shouldRenderReadingView helper is missing');
+
+  const snippet = source.slice(start, end);
+  const context = vm.createContext({});
+  vm.runInContext(`${snippet}; this.shouldRenderReadingView = shouldRenderReadingView;`, context);
+
+  const contiguousReference = {
+    recommended_view: 'reading',
+    reading_items: [{ reference: '[[John 3.1-36]]' }]
+  };
+  assert.equal(context.shouldRenderReadingView(contiguousReference, 'Verse'), false);
+  assert.equal(context.shouldRenderReadingView(contiguousReference, 'Passage'), true);
+  assert.equal(context.shouldRenderReadingView({ recommended_view: 'results', reading_items: [{}] }, 'Verse'), false);
+});
+
+test('display settings use mode-toggle buttons and collapse the dock on mobile', () => {
+  const displayOptions = source.includes("document.querySelectorAll('.display-option-button')") &&
+    source.includes('control.checked = !control.checked') &&
+    source.includes('control.selectedIndex = (control.selectedIndex + 1) % control.options.length');
+  assert.equal(displayOptions, true, 'display option buttons should toggle their backing settings');
+
+  const html = fs.readFileSync(path.join(__dirname, '../templates/index.html'), 'utf8');
+  assert.equal(html.includes('id="displayOptionsToggle"'), true);
+  assert.equal(html.includes('data-option-control="granularity"'), true);
+  assert.equal(html.includes('data-option-control="suppressParagraphs"'), true);
+  assert.equal(html.includes('aria-controls="displayOptionsGrid"'), true);
+  assert.equal(html.includes('data-option-label="Red Letter"'), true);
+  assert.equal(html.includes('data-option-label="Highlight Search"'), true);
+  assert.equal(html.includes('data-option-label="¶"'), true);
+  assert.equal(html.includes('data-option-label="Newline Verse"'), true);
+  assert.equal(html.includes('<option value="Verse">Verse</option>'), true);
+  assert.equal(html.includes('<option value="Wikilink">Wikilink</option>'), true);
+  assert.equal(html.includes('<option value="Ref First">First</option>'), true);
+  assert.equal(html.includes('id="showRedLetters" type="checkbox" checked hidden'), true);
+  assert.equal(html.includes('id="suppressParagraphs" type="checkbox" checked hidden'), true);
+  assert.equal(html.includes('id="highlightMatches" type="checkbox" checked hidden'), true);
+  assert.equal(html.includes('id="showReferenceLinks" type="checkbox" hidden'), true);
+  assert.equal(source.includes('`${currentOption === \'Wikilink\' ? `[[${currentOption}]]` : currentOption} Ref`'), true);
+  assert.equal(source.includes('`Group: ${currentOption}`'), true);
+  assert.equal(source.includes("control.id === 'suppressParagraphs' ? !enabled : enabled"), true);
+  assert.equal(source.includes("`Paragraph marks: ${enabled ? 'Hidden' : 'Shown'}`"), true);
+  assert.equal(source.includes("button.textContent = label;"), true);
+  assert.equal(source.includes("`Links: ${enabled ? 'On' : 'Off'}`"), true);
+  assert.equal(source.includes('function readSavedDisplaySettings()'), true);
+  assert.equal(source.includes('function saveDisplaySettingsCookie()'), true);
+  assert.equal(source.includes('Max-Age=31536000'), true);
+  assert.equal(source.includes("document.addEventListener('change', (event) => {"), true);
+
+  const styles = fs.readFileSync(path.join(__dirname, '../static/styles.css'), 'utf8');
+  assert.equal(styles.includes('.display-options-dock.collapsed .display-options-grid'), true);
+  assert.equal(styles.includes('repeat(auto-fit, minmax(min(100%, 150px), 1fr))'), true);
+  assert.equal(source.includes('optionItem.hidden = !isAvailable;'), true);
+  assert.equal(source.includes('inlineVerseNumbersRow.hidden = !isPassageMode;'), true);
+  assert.equal(styles.includes('height: 44px;'), true);
+  assert.equal(source.includes("highlightMatchesRow.style.visibility = 'visible';"), false);
+  assert.equal(source.includes("referenceLinksRow.style.visibility = 'visible';"), false);
+  assert.equal(source.includes("inlineVerseNumbersRow.style.visibility = 'visible';"), false);
+  assert.equal(source.includes("'Search only'"), true);
+  assert.equal(source.includes("'Verse only'"), true);
+  assert.equal(source.includes("'Passage mode only'"), true);
+  assert.equal(styles.includes('[data-option-control="showRedLetters"][aria-pressed="true"]'), true);
+  assert.equal(styles.includes('[data-option-control="highlightMatches"][aria-pressed="true"]'), true);
+  assert.equal(styles.includes('[data-option-control="showReferenceLinks"][aria-pressed="true"]'), true);
+  assert.equal(styles.includes('[data-option-control="suppressParagraphs"]'), true);
 });
 
 test('single-verse focus keeps the active granularity selected', () => {

@@ -3,14 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Bible Study Search</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260908-1" />
+    <title>Bible</title>
+    <link rel="stylesheet" href="/static/styles.css?v=20261102-15" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261102-1">
   </head>
   <body>
     <div class="app-shell">
       <div class="topbar">
-        <h1>Bible Study Search</h1>
+        <div class="app-brand">
+          <span class="app-icon-wrap">
+            <img class="app-icon" src="/favicon.ico?v=20261102-1" alt="" />
+          </span>
+          <h1>Bible Study</h1>
+        </div>
         <div class="topbar-actions">
           <a class="help-link" href="/help">Help</a>
           <button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false">
@@ -33,6 +38,7 @@
           <div class="actions" aria-label="Search actions">
             <button type="submit" id="searchButton">Search</button>
             <button type="button" id="referenceButton" class="secondary">Reference</button>
+            <button type="button" id="multiReferenceButton" class="secondary" aria-label="Look up multiple references and preserve pasted notes" title="Look up references in pasted notes and keep the notes in order">Multi-reference</button>
           </div>
         </form>
 
@@ -67,30 +73,6 @@
                 </label>
 
                 <label>
-                  <span>Reference style</span>
-                  <select id="referenceStyle">
-                    <option value="Wikilink">Wikilink</option>
-                    <option value="Standard">Standard</option>
-                  </select>
-                </label>
-
-                <label>
-                  <span>Group By</span>
-                  <select id="granularity">
-                    <option value="Verse">Verse</option>
-                    <option value="Passage">Passage</option>
-                  </select>
-                </label>
-
-                <label>
-                  <span>Reference position</span>
-                  <select id="referencePosition">
-                    <option value="Ref First">First</option>
-                    <option value="Ref Last">Last</option>
-                  </select>
-                </label>
-
-                <label>
                   <span>Context window</span>
                   <select id="contextWindow">
                     <option value="0">0</option>
@@ -106,42 +88,6 @@
                 <label class="check-row">
                   <input id="caseSensitive" type="checkbox" />
                   <span>Case sensitive</span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div class="accordion-block">
-            <button type="button" class="accordion-toggle" data-target="displayOptions" aria-expanded="false">
-              <span class="accordion-label">Display options</span>
-              <span class="accordion-arrow" aria-hidden="true">▸</span>
-            </button>
-
-            <div id="displayOptions" class="accordion-panel" data-expanded-by-user="false">
-              <div class="option-grid">
-                <label id="highlightMatchesRow" class="check-row">
-                  <input id="highlightMatches" type="checkbox" checked />
-                  <span>Highlight</span>
-                </label>
-
-                <label class="check-row">
-                  <input id="showRedLetters" type="checkbox" checked />
-                  <span>Red letters</span>
-                </label>
-
-                <label id="referenceLinksRow" class="check-row">
-                  <input id="showReferenceLinks" type="checkbox" />
-                  <span>Reference links</span>
-                </label>
-
-                <label id="inlineVerseNumbersRow" class="check-row" hidden>
-                  <input id="showInlineVerseNumbers" type="checkbox" checked/>
-                  <span>New Line Verse</span>
-                </label>
-
-                <label class="check-row">
-                  <input id="suppressParagraphs" type="checkbox" checked />
-                  <span>Hide paragraph marks</span>
                 </label>
               </div>
             </div>
@@ -166,11 +112,74 @@
         <div id="status" class="status" aria-live="polite"></div>
         <div id="results" class="results" aria-live="polite"></div>
       </main>
+
+      <footer id="displayOptions" class="display-options-dock" aria-label="Display options">
+        <h2 class="display-options-heading">Display options</h2>
+        <button id="displayOptionsToggle" type="button" class="display-options-toggle" aria-expanded="false" aria-controls="displayOptionsGrid">
+          <span>Display options</span>
+          <span class="accordion-arrow" aria-hidden="true">▸</span>
+        </button>
+        <div id="displayOptionsGrid" class="display-options-grid">
+          <div class="display-option-item">
+            <button type="button" class="display-option-button" data-option-control="granularity" data-option-label="Group"></button>
+            <select id="granularity" hidden>
+              <option value="Verse">Verse</option>
+              <option value="Passage">Passage</option>
+            </select>
+          </div>
+
+          <div class="display-option-item">
+            <button type="button" class="display-option-button" data-option-control="referenceStyle" data-option-label="Reference"></button>
+            <select id="referenceStyle" hidden>
+              <option value="Wikilink">Wikilink</option>
+              <option value="Standard">Standard</option>
+            </select>
+          </div>
+
+          <div class="display-option-item">
+            <button type="button" class="display-option-button" data-option-control="referencePosition" data-option-label="Reference"></button>
+            <select id="referencePosition" hidden>
+              <option value="Ref First">First</option>
+              <option value="Ref Last">Last</option>
+            </select>
+          </div>
+
+          <div class="display-option-item">
+            <button type="button" class="display-option-button" data-option-control="showRedLetters" data-option-label="Red Letter"></button>
+            <input id="showRedLetters" type="checkbox" checked hidden />
+          </div>
+
+          <div class="display-option-item">
+            <button type="button" class="display-option-button" data-option-control="suppressParagraphs" data-option-label="¶"></button>
+            <input id="suppressParagraphs" type="checkbox" checked hidden />
+          </div>
+
+          <div id="highlightMatchesRow" class="display-option-item">
+            <button type="button" class="display-option-button" data-option-control="highlightMatches" data-option-label="Highlight Search"></button>
+            <input id="highlightMatches" type="checkbox" checked hidden />
+          </div>
+
+          <div id="referenceLinksRow" class="display-option-item">
+            <button type="button" class="display-option-button" data-option-control="showReferenceLinks" data-option-label="Links"></button>
+            <input id="showReferenceLinks" type="checkbox" hidden />
+          </div>
+
+          <div id="preserveNotesRow" class="display-option-item" hidden>
+            <button type="button" class="display-option-button" data-option-control="preserveNotes" data-option-label="Preserve notes"></button>
+            <input id="preserveNotes" type="checkbox" hidden />
+          </div>
+
+          <div id="inlineVerseNumbersRow" class="display-option-item" hidden>
+            <button type="button" class="display-option-button" data-option-control="showInlineVerseNumbers" data-option-label="Newline Verse"></button>
+            <input id="showInlineVerseNumbers" type="checkbox" checked hidden />
+          </div>
+        </div>
+      </footer>
     </div>
 
     <script>
       window.__INITIAL_QUERY__ = {{ initial_query|default('', true)|tojson }};
     </script>
-    <script src="/static/app.js?v=20261102-3"></script>
+    <script src="/static/app.js?v=20261102-22"></script>
   </body>
 </html>

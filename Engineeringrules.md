@@ -610,6 +610,20 @@ When transitioning from desktop to mobile:
 ### 23.5 Semantic stability
 Responsive layout changes **MUST NOT** alter the semantic content of results; they may alter only presentation and panel visibility.
 
+### 23.6 Search insights
+When returned verses are available, the results view **SHOULD** include a collapsible Search insights panel.
+
+The panel **MUST**:
+- count returned verses by book, including verses added by the requested context window,
+- provide clickable book bars that filter the displayed results to the selected book,
+- support Ctrl-click or Cmd-click to add or remove books from a multi-book filter,
+- restore all books when the active single-book filter is clicked again,
+- provide clickable words that start a new search in the current page,
+- keep word frequencies and book counts based on the full returned verse set while a book filter is active,
+- keep the text-search result count based on matching verses, not context-only verses.
+
+The panel **SHOULD** use a responsive layout that stacks its chart and word cloud on narrow screens.
+
 ---
 
 ## 24. Search Reliability Requirements
@@ -627,6 +641,9 @@ The system **MUST** ensure that:
 - apostrophe-containing queries do not silently fail,
 - apostrophe-containing queries do not degrade into avoidable false negatives,
 - users receive expected matches even when the primary index path is unsuitable.
+
+### 24.4 Multi-reference note retention
+When looking up references in pasted notes, the system **MUST** preserve all non-reference text in its original order, including text following a reference link and text after the final reference.
 
 ---
 

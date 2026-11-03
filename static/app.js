@@ -5,11 +5,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const results = document.getElementById('results');
   const searchButton = document.getElementById('searchButton');
   const referenceButton = document.getElementById('referenceButton');
+  const multiReferenceButton = document.getElementById('multiReferenceButton');
   const searchType = document.getElementById('searchType');
   const bookGroup = document.getElementById('bookGroup');
   const referenceStyle = document.getElementById('referenceStyle');
   const granularity = document.getElementById('granularity');
   const referencePosition = document.getElementById('referencePosition');
+  const preserveNotesToggle = document.getElementById('preserveNotes');
   const contextWindow = document.getElementById('contextWindow');
   const caseSensitive = document.getElementById('caseSensitive');
   const suppressParagraphs = document.getElementById('suppressParagraphs');
@@ -65,19 +67,11 @@ document.addEventListener('DOMContentLoaded', () => {
   Object.entries(BOOK_ALIASES).forEach(([key, name]) => {
     BOOK_NUMBER_BY_NAME[key.toLowerCase()] = BOOK_NUMBER_BY_NAME[name.toLowerCase()];
   });
+  const selectedInsightBooks = new Set();
   let lastResultsData = null;
   let readingNavigationState = {
     entries: [],
-    loading: false,
-    lastScrollY: window.scrollY,
-    previousLoadLocked: false,
-    nextLoadLocked: false,
-    lastAutoLoadAt: 0,
-    bottomWheelStartedAt: null,
-    bottomPauseStartedAt: null,
-    topScrollStartedAt: null,
-    topPauseStartedAt: null,
-    pendingBoundaryDirection: null
+    loading: false
   };
   window.__READING_FOCUS_INITIALIZED__ = null;
   window.__READING_FOCUS_SCROLL_INITIALIZED__ = false;
@@ -311,6 +305,48 @@ document.addEventListener('DOMContentLoaded', () => {
     return Boolean(fallback);
   }
 
+  function readSavedDisplaySettings() {
+    const cookiePrefix = 'bibleDisplaySettings=';
+    const savedCookie = document.cookie.split(';').map((cookie) => cookie.trim()).find((cookie) => cookie.startsWith(cookiePrefix));
+    if (!savedCookie) return {};
+
+    try {
+      const saved = JSON.parse(decodeURIComponent(savedCookie.slice(cookiePrefix.length)));
+      if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {};
+
+      return {
+        granularity: ['Verse', 'Passage'].includes(saved.granularity) ? saved.granularity : undefined,
+        reference_style: ['Wikilink', 'Standard'].includes(saved.reference_style) ? saved.reference_style : undefined,
+        reference_position: ['Ref First', 'Ref Last'].includes(saved.reference_position) ? saved.reference_position : undefined,
+        showRedLetters: typeof saved.showRedLetters === 'boolean' ? saved.showRedLetters : undefined,
+        suppressParagraphs: typeof saved.suppressParagraphs === 'boolean' ? saved.suppressParagraphs : undefined,
+        highlight: typeof saved.highlight === 'boolean' ? saved.highlight : undefined,
+        showReferenceLinks: typeof saved.showReferenceLinks === 'boolean' ? saved.showReferenceLinks : undefined,
+        preserveNotes: typeof saved.preserveNotes === 'boolean' ? saved.preserveNotes : undefined,
+        newLineVerse: typeof saved.newLineVerse === 'boolean' ? saved.newLineVerse : undefined
+      };
+    } catch (error) {
+      console.warn('Unable to read saved display settings cookie.', error);
+      return {};
+    }
+  }
+
+  function saveDisplaySettingsCookie() {
+    const settings = {
+      granularity: granularitySelect?.value || 'Verse',
+      reference_style: referenceStyle?.value || 'Wikilink',
+      reference_position: referencePosition?.value || 'Ref First',
+      showRedLetters: Boolean(redLetterToggle?.checked),
+      suppressParagraphs: Boolean(suppressParagraphs?.checked),
+      highlight: Boolean(highlightToggle?.checked),
+      showReferenceLinks: Boolean(referenceLinkToggle?.checked),
+      preserveNotes: Boolean(preserveNotesToggle?.checked),
+      newLineVerse: Boolean(inlineVerseNumbersToggle?.checked)
+    };
+    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `bibleDisplaySettings=${encodeURIComponent(JSON.stringify(settings))}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+  }
+
   function getUrlReadSettings(defaults = {}) {
     const params = new URLSearchParams(window.location.search);
     const fallbackGranularity = defaults.granularity ?? granularitySelect?.value ?? 'Verse';
@@ -490,6 +526,23 @@ document.addEventListener('DOMContentLoaded', () => {
       }));
     }
 
+    if (Array.isArray(data.preserved_blocks)) {
+      data.preserved_blocks = data.preserved_blocks.map((block) => {
+        if (block.type !== 'reference' || !Array.isArray(block.items)) return block;
+        return {
+          ...block,
+          items: block.items.map((item) => {
+            const parts = parseReferenceParts(item?.reference || '');
+            return {
+              ...item,
+              reference: buildReferenceTextFromParts(parts, styleValue) || item.reference || '',
+              reference_position: positionValue
+            };
+          })
+        };
+      });
+    }
+
     return data;
   }
 
@@ -503,6 +556,96 @@ document.addEventListener('DOMContentLoaded', () => {
       show_red_letters: Boolean(redLetterCheckbox && redLetterCheckbox.checked),
       show_reference_links: Boolean(referenceLinkCheckbox && referenceLinkCheckbox.checked)
     };
+  }
+
+  function syncDisplayOptionButtons() {
+    const hasReadingView = Boolean(document.querySelector('.reading-view'));
+    const isPassageMode = (granularitySelect?.value || 'Verse') === 'Passage';
+    const canPreserveNotes = lastResultsData?.query_mode === 'extract' &&
+      Number(lastResultsData?.preservable_reference_count || lastResultsData?.extracted_refs?.length || 0) > 1;
+
+    document.querySelectorAll('.display-option-button').forEach((button) => {
+      const control = document.getElementById(button.dataset.optionControl || '');
+      const label = button.dataset.optionLabel || '';
+      if (!control) return;
+
+      const unavailableMessage = control.id === 'highlightMatches' && hasReadingView
+        ? 'Search only'
+        : control.id === 'showReferenceLinks' && hasReadingView && isPassageMode
+          ? 'Verse only'
+          : control.id === 'showInlineVerseNumbers' && !isPassageMode
+            ? 'Passage mode only'
+            : control.id === 'preserveNotes' && !canPreserveNotes
+              ? 'multiple-reference notes'
+            : '';
+      const optionItem = button.closest('.display-option-item');
+      const isAvailable = !unavailableMessage;
+      if (optionItem) {
+        optionItem.hidden = !isAvailable;
+      }
+
+      if (control instanceof HTMLInputElement && control.type === 'checkbox') {
+        const enabled = control.checked;
+        button.disabled = !isAvailable;
+        if (control.id === 'showRedLetters') {
+          button.textContent = label;
+        } else if (control.id === 'showInlineVerseNumbers') {
+          button.textContent = label;
+        } else if (control.id === 'suppressParagraphs') {
+          button.textContent = '¶';
+        } else if (control.id === 'highlightMatches') {
+          button.textContent = label;
+        } else if (control.id === 'showReferenceLinks') {
+          button.textContent = label;
+        } else if (control.id === 'preserveNotes') {
+          button.textContent = `${label}: ${enabled ? 'On' : 'Off'}`;
+        } else {
+          button.textContent = `${label}: ${enabled ? 'On' : 'Off'}`;
+        }
+        if (unavailableMessage) {
+          button.removeAttribute('aria-pressed');
+          button.setAttribute('aria-label', `${label}, available in ${unavailableMessage.toLowerCase()}`);
+        } else {
+          const pressed = control.id === 'suppressParagraphs' ? !enabled : enabled;
+          button.setAttribute('aria-pressed', String(pressed));
+          const accessibleLabel = control.id === 'showReferenceLinks'
+            ? `Links: ${enabled ? 'On' : 'Off'}`
+            : control.id === 'suppressParagraphs'
+              ? `Paragraph marks: ${enabled ? 'Hidden' : 'Shown'}`
+              : control.id === 'showInlineVerseNumbers'
+                ? label
+              : `${label}: ${enabled ? 'On' : 'Off'}`;
+          button.setAttribute('aria-label', accessibleLabel);
+        }
+        return;
+      }
+
+      const currentOption = control.selectedOptions?.[0]?.textContent?.trim() || control.value;
+      const nextOption = control.options?.[(control.selectedIndex + 1) % control.options.length]?.textContent?.trim();
+      button.disabled = false;
+      button.textContent = control.id === 'referencePosition'
+        ? `Reference ${currentOption}`
+        : control.id === 'referenceStyle'
+          ? `${currentOption === 'Wikilink' ? `[[${currentOption}]]` : currentOption} Ref`
+          : control.id === 'granularity'
+            ? `Group: ${currentOption}`
+            : `${label}: ${currentOption}`;
+      button.removeAttribute('aria-pressed');
+      button.setAttribute('aria-label', `${button.textContent}. Activate to switch to ${nextOption}.`);
+    });
+  }
+
+  function setDisplayOptionsExpanded(expanded) {
+    const dock = document.getElementById('displayOptions');
+    const toggle = document.getElementById('displayOptionsToggle');
+    if (!dock || !toggle) return;
+
+    dock.classList.toggle('collapsed', !expanded);
+    toggle.setAttribute('aria-expanded', String(expanded));
+    const arrow = toggle.querySelector('.accordion-arrow');
+    if (arrow) {
+      arrow.textContent = expanded ? '▾' : '▸';
+    }
   }
 
   function setStatus(message, isError = false) {
@@ -567,6 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function setLoading(isLoading) {
     if (searchButton) searchButton.disabled = isLoading;
     if (referenceButton) referenceButton.disabled = isLoading;
+    if (multiReferenceButton) multiReferenceButton.disabled = isLoading;
     if (input) input.disabled = isLoading;
   }
 
@@ -726,72 +870,186 @@ document.addEventListener('DOMContentLoaded', () => {
     return fragment;
   }
 
-  function renderWildcardSummary(data) {
-    const summary = Array.isArray(data?.wildcard_summary) ? data.wildcard_summary : [];
-    if (!summary.length) return;
+  function renderSearchInsights(data) {
+    const insights = data?.insights;
+    if (!insights || !insights.verse_count) return;
 
-    const wrapper = document.createElement('div');
-    wrapper.className = 'wildcard-summary';
+    const wrapper = document.createElement('section');
+    wrapper.className = 'search-insights';
 
-    const title = document.createElement('h3');
-    title.textContent = 'Word counts';
-    wrapper.appendChild(title);
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'insights-toggle';
+    const expanded = !window.matchMedia('(max-width: 640px)').matches;
+    toggle.setAttribute('aria-expanded', String(expanded));
+    toggle.setAttribute('aria-controls', 'searchInsightsContent');
 
-    const list = document.createElement('ul');
-    summary.forEach((entry) => {
-      const li = document.createElement('li');
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'summary-link';
-      button.textContent = `${entry.word} (${entry.matches})`;
-      button.addEventListener('click', () => {
-        const url = new URL(window.location.href);
-        url.pathname = '/';
-        url.search = new URLSearchParams({ q: entry.word }).toString();
-        window.open(url.toString(), '_blank', 'noopener,noreferrer');
+    const heading = document.createElement('span');
+    heading.className = 'insights-heading';
+    heading.textContent = 'Search insights';
+    toggle.appendChild(heading);
+
+    const subtitle = document.createElement('span');
+    subtitle.className = 'insights-subtitle';
+    subtitle.textContent = `${insights.verse_count} verse${insights.verse_count === 1 ? '' : 's'} shown · context included`;
+    toggle.appendChild(subtitle);
+
+    const arrow = document.createElement('span');
+    arrow.className = 'accordion-arrow';
+    arrow.setAttribute('aria-hidden', 'true');
+    arrow.textContent = expanded ? '▾' : '▸';
+    toggle.appendChild(arrow);
+    wrapper.appendChild(toggle);
+
+    const content = document.createElement('div');
+    content.className = 'insights-content';
+    content.id = 'searchInsightsContent';
+    content.hidden = !expanded;
+
+    const bookSection = document.createElement('section');
+    bookSection.className = 'insights-panel book-insights';
+    const bookHeading = document.createElement('h4');
+    bookHeading.textContent = 'Verses by book';
+    bookSection.appendChild(bookHeading);
+    const bookHint = document.createElement('p');
+    bookHint.className = 'insights-hint';
+    bookHint.textContent = 'Click a book to filter; Ctrl/Cmd-click to select multiple.';
+    bookSection.appendChild(bookHint);
+
+    const books = Array.isArray(insights.books) ? insights.books : [];
+    const maxBookCount = Math.max(1, ...books.map((book) => Number(book.count) || 0));
+    const bookChart = document.createElement('div');
+    bookChart.className = 'book-chart';
+    bookChart.setAttribute('aria-label', 'Verses returned by book');
+    books.forEach((book, index) => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'book-bar-row';
+      const bookNumber = Number(book.book);
+      const isSelected = selectedInsightBooks.has(bookNumber);
+      row.setAttribute('aria-pressed', String(isSelected));
+      row.setAttribute('aria-label', `${book.name}: ${book.count} verses. Click to filter results.`);
+
+      const name = document.createElement('span');
+      name.className = 'book-bar-name';
+      name.textContent = book.name;
+      row.appendChild(name);
+
+      const track = document.createElement('span');
+      track.className = 'book-bar-track';
+      const fill = document.createElement('span');
+      fill.className = 'book-bar-fill';
+      fill.style.width = `${Math.max(3, (Number(book.count) / maxBookCount) * 100)}%`;
+      fill.style.backgroundColor = `hsl(${(index * 47 + 190) % 360} 68% 52%)`;
+      track.appendChild(fill);
+      row.appendChild(track);
+
+      const count = document.createElement('span');
+      count.className = 'book-bar-count';
+      count.textContent = String(book.count);
+      row.appendChild(count);
+      row.addEventListener('click', (event) => {
+        if (event.ctrlKey || event.metaKey) {
+          if (selectedInsightBooks.has(bookNumber)) {
+            selectedInsightBooks.delete(bookNumber);
+          } else {
+            selectedInsightBooks.add(bookNumber);
+          }
+        } else if (selectedInsightBooks.size === 1 && selectedInsightBooks.has(bookNumber)) {
+          selectedInsightBooks.clear();
+        } else {
+          selectedInsightBooks.clear();
+          selectedInsightBooks.add(bookNumber);
+        }
+        renderResults(lastResultsData);
       });
-      li.appendChild(button);
-      list.appendChild(li);
+      bookChart.appendChild(row);
     });
+    bookSection.appendChild(bookChart);
+    content.appendChild(bookSection);
 
-    wrapper.appendChild(list);
+    const wordSection = document.createElement('section');
+    wordSection.className = 'insights-panel word-insights';
+    const wordHeading = document.createElement('h4');
+    wordHeading.textContent = 'Other words in these verses';
+    wordSection.appendChild(wordHeading);
+
+    const words = Array.isArray(insights.words) ? insights.words : [];
+    if (words.length) {
+      const maxWordCount = Math.max(1, ...words.map((word) => Number(word.count) || 0));
+      const cloud = document.createElement('div');
+      cloud.className = 'word-cloud';
+      words.forEach((entry, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'word-cloud-link';
+        button.dataset.tone = String(index % 5);
+        const size = 0.82 + (Number(entry.count) / maxWordCount) * 0.85;
+        button.style.fontSize = `${size.toFixed(2)}rem`;
+        button.textContent = entry.word;
+        button.title = `${entry.word}: ${entry.count} occurrences. Search this word.`;
+        button.setAttribute('aria-label', `Search for ${entry.word}, found ${entry.count} times`);
+        button.addEventListener('click', () => {
+          if (!input || !form) return;
+          input.value = entry.word;
+          runSearch('search');
+        });
+        cloud.appendChild(button);
+      });
+      wordSection.appendChild(cloud);
+    } else {
+      const empty = document.createElement('p');
+      empty.className = 'insights-empty';
+      empty.textContent = 'No additional words to show.';
+      wordSection.appendChild(empty);
+    }
+    content.appendChild(wordSection);
+    wrapper.appendChild(content);
+
+    toggle.addEventListener('click', () => {
+      const expanded = toggle.getAttribute('aria-expanded') !== 'true';
+      toggle.setAttribute('aria-expanded', String(expanded));
+      content.hidden = !expanded;
+      arrow.textContent = expanded ? '▾' : '▸';
+    });
     results.appendChild(wrapper);
   }
 
-  function renderWildcardSummaryForReadingView(data) {
-    if (!data || !Array.isArray(data.wildcard_summary) || !data.wildcard_summary.length) {
-      return;
-    }
+  function renderWildcardSummary(data) {
+    const summary = Array.isArray(data?.wildcard_summary) ? data.wildcard_summary : [];
+    const query = typeof data?.query === 'string' ? data.query : window.__LAST_SEARCH_QUERY__;
+    if (!query?.includes('*') || !summary.length) return;
 
-    const existing = document.querySelector('.wildcard-summary');
-    if (existing) {
-      existing.remove();
-    }
-
-    const wrapper = document.createElement('div');
+    const wrapper = document.createElement('section');
     wrapper.className = 'wildcard-summary';
 
-    const title = document.createElement('h3');
-    title.textContent = 'Word counts';
-    wrapper.appendChild(title);
+    const heading = document.createElement('h3');
+    heading.textContent = 'Wildcard word forms';
+    wrapper.appendChild(heading);
 
-    const list = document.createElement('ul');
-    data.wildcard_summary.forEach((entry) => {
-      const li = document.createElement('li');
+    const cloud = document.createElement('div');
+    cloud.className = 'word-cloud';
+    const maxMatches = Math.max(1, ...summary.map((entry) => Number(entry.matches) || 0));
+    summary.forEach((entry, index) => {
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'summary-link';
-      button.textContent = `${entry.word} (${entry.matches})`;
+      button.className = 'word-cloud-link';
+      button.dataset.tone = String(index % 5);
+      const matches = Number(entry.matches) || 0;
+      const verses = Number(entry.verses) || 0;
+      button.style.fontSize = `${(0.82 + (matches / maxMatches) * 0.55).toFixed(2)}rem`;
+      button.textContent = `${entry.word} (${matches})`;
+      button.title = `${entry.word}: ${matches} occurrences in ${verses} verses. Search this word.`;
+      button.setAttribute('aria-label', `Search for ${entry.word}, found ${matches} times in ${verses} verses`);
       button.addEventListener('click', () => {
-        const url = new URL(window.location.href);
-        url.pathname = '/';
-        url.search = new URLSearchParams({ q: entry.word }).toString();
-        window.open(url.toString(), '_blank', 'noopener,noreferrer');
+        if (!input) return;
+        input.value = entry.word;
+        runSearch('search');
       });
-      li.appendChild(button);
-      list.appendChild(li);
+      cloud.appendChild(button);
     });
-    wrapper.appendChild(list);
+
+    wrapper.appendChild(cloud);
     results.appendChild(wrapper);
   }
 
@@ -813,29 +1071,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!inlineVerseNumbersRow) return;
     const isPassageMode = (granularitySelect?.value || 'Verse') === 'Passage';
     inlineVerseNumbersRow.hidden = !isPassageMode;
-    inlineVerseNumbersRow.style.display = isPassageMode ? 'flex' : 'none';
-    inlineVerseNumbersRow.style.visibility = isPassageMode ? 'visible' : 'hidden';
   }
 
   function updateDisplayOptionsVisibility() {
-    const hasReadingView = Boolean(document.querySelector('.reading-view'));
     const urlSettings = getUrlReadSettings();
     const isPassageMode = (granularitySelect?.value || 'Verse') === 'Passage';
-    const highlightMatchesRow = document.getElementById('highlightMatchesRow');
-    const referenceLinksRow = document.getElementById('referenceLinksRow');
     const hasInlineVersePreference = Boolean(urlSettings.newLineVerse || (inlineVerseNumbersToggle && inlineVerseNumbersToggle.checked));
 
-    if (highlightMatchesRow) {
-      highlightMatchesRow.hidden = hasReadingView;
-      highlightMatchesRow.style.display = hasReadingView ? 'none' : 'flex';
-    }
-
-    if (referenceLinksRow) {
-      referenceLinksRow.hidden = hasReadingView && isPassageMode;
-      referenceLinksRow.style.display = (hasReadingView && isPassageMode) ? 'none' : 'flex';
-    }
-
     syncInlineVerseRowDisplay();
+    syncDisplayOptionButtons();
 
     if (inlineVerseNumbersToggle && !isPassageMode && !hasInlineVersePreference) {
       inlineVerseNumbersToggle.checked = false;
@@ -1000,7 +1244,8 @@ document.addEventListener('DOMContentLoaded', () => {
     readingNavigationState.entries = items;
 
     if (!results) return;
-    results.innerHTML = '';
+    results.querySelector('.reading-view')?.remove();
+    results.querySelectorAll('.reading-chapter-nav').forEach((navigation) => navigation.remove());
 
     if (!items.length) {
       const empty = document.createElement('p');
@@ -1031,7 +1276,9 @@ document.addEventListener('DOMContentLoaded', () => {
       wrapper.appendChild(chapterBlock);
     });
 
+    appendReadingChapterNavigation('previous');
     results.appendChild(wrapper);
+    appendReadingChapterNavigation('next');
 
     const focusReference = getUrlReadSettings().focus || window.__READING_FOCUS_REF || '';
     if (focusReference) {
@@ -1047,6 +1294,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function appendReadingChapterNavigation(direction) {
+    const entries = readingNavigationState.entries || [];
+    const targetRef = direction === 'previous'
+      ? entries[0]?.nav?.previous
+      : entries[entries.length - 1]?.nav?.next;
+    if (!targetRef) return;
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'secondary';
+    button.textContent = direction === 'previous' ? 'Load previous chapter' : 'Load next chapter';
+    button.disabled = readingNavigationState.loading;
+    button.addEventListener('click', () => loadReadingChapter(direction));
+
+    const navigation = document.createElement('div');
+    navigation.className = `reading-chapter-nav reading-chapter-nav-${direction === 'previous' ? 'top' : 'bottom'}`;
+    navigation.appendChild(button);
+    results.appendChild(navigation);
+  }
+
   async function loadReadingChapter(direction) {
     const entries = readingNavigationState.entries || [];
     if (!entries.length || readingNavigationState.loading) return;
@@ -1057,12 +1324,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!targetRef) return;
 
-    const now = Date.now();
-    if (now - readingNavigationState.lastAutoLoadAt < 600) {
-      return;
-    }
-
     readingNavigationState.loading = true;
+    results?.querySelectorAll('.reading-chapter-nav button').forEach((button) => {
+      button.disabled = true;
+    });
     try {
       const data = await postSearch('reference', targetRef, getSearchOptions());
       const nextEntries = Array.isArray(data?.reading_items) ? data.reading_items : [];
@@ -1075,7 +1340,22 @@ document.addEventListener('DOMContentLoaded', () => {
         collapseReadingAccordions();
       }
 
-      renderReadingView({ reading_items: readingNavigationState.entries });
+      if ((granularitySelect?.value || 'Verse') === 'Passage') {
+        renderReadingView({ reading_items: readingNavigationState.entries });
+        updateDisplayOptionsVisibility();
+      } else {
+        const existingItems = Array.isArray(lastResultsData?.items) ? lastResultsData.items : [];
+        const newItems = Array.isArray(data?.items) ? data.items : [];
+        lastResultsData = {
+          ...lastResultsData,
+          reading_items: readingNavigationState.entries,
+          items: direction === 'next'
+            ? [...existingItems, ...newItems]
+            : [...newItems, ...existingItems]
+        };
+        renderResults(lastResultsData);
+      }
+
       const activeFocus = window.__READING_FOCUS_REF || getUrlReadSettings().focus || '';
       if (activeFocus) {
         applyReadingVerseFocus(activeFocus);
@@ -1117,199 +1397,67 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
 
-      readingNavigationState.lastAutoLoadAt = Date.now();
       setStatus(`Loaded ${direction === 'next' ? 'next' : 'previous'} chapter.`);
     } catch (error) {
       setStatus(error.message || 'Failed to load chapter.', true);
     } finally {
       readingNavigationState.loading = false;
+      results?.querySelectorAll('.reading-chapter-nav button').forEach((button) => {
+        button.disabled = false;
+      });
     }
   }
 
-  function handleReadingScrollAutoLoad() {
-    const entries = readingNavigationState.entries || [];
-    if (!entries.length) return;
-
-    const previousRef = entries[0]?.nav?.previous;
-    const nextRef = entries[entries.length - 1]?.nav?.next;
-    const currentScrollY = window.scrollY;
-    const scrollingUp = currentScrollY < readingNavigationState.lastScrollY;
-    const scrollingDown = currentScrollY > readingNavigationState.lastScrollY;
-    const truePageBottom = document.body.scrollHeight;
-    const atTop = currentScrollY <= 0;
-    const atBottom = currentScrollY + window.innerHeight >= truePageBottom - 1;
-    const cooldownActive = Date.now() - readingNavigationState.lastAutoLoadAt < 600;
-    const readingOverflowVisible = document.body.scrollHeight > window.innerHeight * 1.25;
-    const topPauseStartedAt = readingNavigationState.topPauseStartedAt;
-    const bottomPauseStartedAt = readingNavigationState.bottomPauseStartedAt;
-    const topPauseElapsed = Boolean(topPauseStartedAt) && Date.now() - topPauseStartedAt >= 600;
-    const bottomPauseElapsed = Boolean(bottomPauseStartedAt) && Date.now() - bottomPauseStartedAt >= 600;
-    const keyboardIntentUp = readingNavigationState.pendingBoundaryDirection === 'up';
-    const keyboardIntentDown = readingNavigationState.pendingBoundaryDirection === 'down';
-
-    if ((atTop && keyboardIntentUp) || (atTop && !scrollingDown && !topPauseStartedAt)) {
-      readingNavigationState.topPauseStartedAt = readingNavigationState.topPauseStartedAt || Date.now();
-    } else if (!atTop || scrollingDown) {
-      readingNavigationState.topPauseStartedAt = null;
-      if (!atTop && keyboardIntentUp) {
-        readingNavigationState.pendingBoundaryDirection = null;
-      }
-    }
-
-    if ((atBottom && keyboardIntentDown) || (atBottom && !scrollingUp && !bottomPauseStartedAt)) {
-      readingNavigationState.bottomPauseStartedAt = readingNavigationState.bottomPauseStartedAt || Date.now();
-    } else if (!atBottom || scrollingUp) {
-      readingNavigationState.bottomPauseStartedAt = null;
-      if (!atBottom && keyboardIntentDown) {
-        readingNavigationState.pendingBoundaryDirection = null;
-      }
-    }
-
-    if (!atBottom && !readingNavigationState.loading) {
-      readingNavigationState.nextLoadLocked = false;
-      readingNavigationState.bottomWheelStartedAt = null;
-    }
-
-    if (atTop && scrollingUp) {
-      collapseReadingAccordions();
-    }
-
-    if (atTop && previousRef && readingOverflowVisible && !readingNavigationState.loading && !readingNavigationState.previousLoadLocked && !cooldownActive && (topPauseElapsed || keyboardIntentUp)) {
-      readingNavigationState.previousLoadLocked = true;
-      readingNavigationState.topPauseStartedAt = null;
-      readingNavigationState.pendingBoundaryDirection = null;
-      loadReadingChapter('previous');
-    } else if (!atTop || !readingOverflowVisible) {
-      readingNavigationState.previousLoadLocked = false;
-    }
-
-    if (atBottom && nextRef && readingOverflowVisible && !readingNavigationState.loading && !readingNavigationState.nextLoadLocked && !cooldownActive && (bottomPauseElapsed || keyboardIntentDown)) {
-      readingNavigationState.nextLoadLocked = true;
-      readingNavigationState.bottomPauseStartedAt = null;
-      readingNavigationState.pendingBoundaryDirection = null;
-      loadReadingChapter('next');
-    } else if (!atBottom || !readingOverflowVisible) {
-      readingNavigationState.nextLoadLocked = false;
-    }
-
-    readingNavigationState.lastScrollY = currentScrollY;
-  }
-
-  function handleReadingKeyboardAutoLoad(event) {
-    const entries = readingNavigationState.entries || [];
-    if (!entries.length || !event) return;
-
-    const key = event.key || '';
-    const previousRef = entries[0]?.nav?.previous;
-    const nextRef = entries[entries.length - 1]?.nav?.next;
-    const currentScrollY = window.scrollY;
-    const truePageBottom = document.body.scrollHeight;
-    const atTop = currentScrollY <= 0;
-    const atBottom = currentScrollY + window.innerHeight >= truePageBottom - 1;
-    const cooldownActive = Date.now() - readingNavigationState.lastAutoLoadAt < 600;
-    const goesUp = ['PageUp', 'ArrowUp', 'Home'].includes(key);
-    const goesDown = ['PageDown', 'ArrowDown', 'End'].includes(key);
-
-    if (goesUp) {
-      readingNavigationState.pendingBoundaryDirection = 'up';
-      if (atTop && previousRef && !readingNavigationState.loading && !readingNavigationState.previousLoadLocked && !cooldownActive) {
-        if (!readingNavigationState.topPauseStartedAt) {
-          readingNavigationState.topPauseStartedAt = Date.now();
-        }
-        if (Date.now() - readingNavigationState.topPauseStartedAt >= 600) {
-          readingNavigationState.previousLoadLocked = true;
-          readingNavigationState.topPauseStartedAt = null;
-          readingNavigationState.pendingBoundaryDirection = null;
-          loadReadingChapter('previous');
-        }
-      }
-      return;
-    }
-
-    if (goesDown) {
-      readingNavigationState.pendingBoundaryDirection = 'down';
-      if (atBottom && nextRef && !readingNavigationState.loading && !readingNavigationState.nextLoadLocked && !cooldownActive) {
-        if (!readingNavigationState.bottomPauseStartedAt) {
-          readingNavigationState.bottomPauseStartedAt = Date.now();
-        }
-        if (Date.now() - readingNavigationState.bottomPauseStartedAt >= 600) {
-          readingNavigationState.nextLoadLocked = true;
-          readingNavigationState.bottomPauseStartedAt = null;
-          readingNavigationState.pendingBoundaryDirection = null;
-          loadReadingChapter('next');
-        }
-      }
-    }
-  }
-
-  function handleReadingWheelAutoLoad(event) {
-    const entries = readingNavigationState.entries || [];
-    if (!entries.length || !event) return;
-
-    const previousRef = entries[0]?.nav?.previous;
-    const nextRef = entries[entries.length - 1]?.nav?.next;
-    const currentScrollY = window.scrollY;
-    const truePageBottom = document.body.scrollHeight;
-    const atTop = currentScrollY <= 0;
-    const atBottom = currentScrollY + window.innerHeight >= truePageBottom - 1;
-    const cooldownActive = Date.now() - readingNavigationState.lastAutoLoadAt < 600;
-    const topPauseStartedAt = readingNavigationState.topPauseStartedAt;
-    const topPauseElapsed = Boolean(topPauseStartedAt) && Date.now() - topPauseStartedAt >= 600;
-
-    if (event.deltaY < 0) {
-      if (atTop) {
-        if (!topPauseStartedAt) {
-          readingNavigationState.topPauseStartedAt = Date.now();
-        }
-
-        if (previousRef && !readingNavigationState.loading && !readingNavigationState.previousLoadLocked && !cooldownActive && Date.now() - readingNavigationState.topPauseStartedAt >= 600) {
-          readingNavigationState.previousLoadLocked = true;
-          readingNavigationState.topPauseStartedAt = null;
-          loadReadingChapter('previous');
-        }
-      } else {
-        readingNavigationState.topPauseStartedAt = null;
-      }
-      return;
-    }
-
-    if (event.deltaY > 0 && atTop) {
-      readingNavigationState.topPauseStartedAt = null;
-    }
-
-    if (event.deltaY <= 0) {
-      return;
-    }
-
-    if (!atBottom || !nextRef || readingNavigationState.loading || readingNavigationState.nextLoadLocked || cooldownActive) {
-      readingNavigationState.bottomWheelStartedAt = null;
-      return;
-    }
-
-    if (!readingNavigationState.bottomWheelStartedAt) {
-      readingNavigationState.bottomWheelStartedAt = Date.now();
-      return;
-    }
-
-    const bottomWheelDebounceDue = Date.now() - readingNavigationState.bottomWheelStartedAt >= 600;
-    if (bottomWheelDebounceDue) {
-      readingNavigationState.nextLoadLocked = true;
-      readingNavigationState.bottomWheelStartedAt = null;
-      loadReadingChapter('next');
-    }
+  function shouldRenderReadingView(data, granularity) {
+    return Boolean(
+      granularity === 'Passage' &&
+      data &&
+      data.recommended_view === 'reading' &&
+      Array.isArray(data.reading_items) &&
+      data.reading_items.length
+    );
   }
 
   function renderResults(data) {
     lastResultsData = data || null;
-    updateDisplayOptionsVisibility();
     readingNavigationState.entries = [];
     if (!results) return;
     results.innerHTML = '';
+    updateDisplayOptionsVisibility();
 
-    const isPassageMode = (granularitySelect?.value || 'Verse') === 'Passage';
     const activeGranularity = granularitySelect?.value || 'Verse';
-    const activeFocusReference = getUrlReadSettings().focus || window.__READING_FOCUS_REF || '';
-    const isReadingMode = Boolean(data && data.recommended_view === 'reading' && Array.isArray(data.reading_items) && data.reading_items.length && isPassageMode);
+    const selectedBooks = selectedInsightBooks;
+    const visibleData = selectedBooks.size
+      ? {
+        ...data,
+        items: (Array.isArray(data?.items) ? data.items : [])
+          .filter((item) => selectedBooks.has(Number(item?.book))),
+        reading_items: (Array.isArray(data?.reading_items) ? data.reading_items : [])
+          .filter((item) => selectedBooks.has(Number(item?.book))),
+        stats: {
+          ...data?.stats,
+          matched_verses: (Array.isArray(data?.insights?.matched_books) ? data.insights.matched_books : [])
+            .filter((entry) => selectedBooks.has(Number(entry.book)))
+            .reduce((total, entry) => total + Number(entry.count || 0), 0)
+        }
+      }
+      : data;
+    const isReadingMode = shouldRenderReadingView(visibleData, activeGranularity);
+    if (visibleData?.query_mode === 'text' && Number.isInteger(visibleData?.stats?.matched_verses)) {
+      const resultCount = document.createElement('p');
+      const totalResults = visibleData.stats.matched_verses;
+      resultCount.className = 'result-count';
+      resultCount.textContent = selectedBooks.size
+        ? `${totalResults} result${totalResults === 1 ? '' : 's'} found in selected books.`
+        : `${totalResults} result${totalResults === 1 ? '' : 's'} found.`;
+      results.appendChild(resultCount);
+    }
+    renderWildcardSummary(data);
+    renderSearchInsights(data);
+
+    readingNavigationState.entries = visibleData?.recommended_view === 'reading' && Array.isArray(visibleData.reading_items)
+      ? visibleData.reading_items
+      : [];
     if (isReadingMode) {
       const queryReference = normalizeReferenceForUrl(
         (input && input.value.trim()) ||
@@ -1350,15 +1498,21 @@ document.addEventListener('DOMContentLoaded', () => {
         inlineVerseNumbersToggle.checked = Boolean(urlSettings.newLineVerse || inlineVerseNumbersToggle.checked);
       }
       updateInlineVerseNumberVisibility();
-      renderReadingView(data);
+      renderReadingView(visibleData);
       updateInlineVerseNumberVisibility();
-      renderWildcardSummaryForReadingView(data);
       return;
     }
 
-    renderWildcardSummary(data);
+    if (
+      preserveNotesToggle?.checked &&
+      Array.isArray(visibleData?.preserved_blocks) &&
+      visibleData.preserved_blocks.length
+    ) {
+      renderPreservedResults(visibleData);
+      return;
+    }
 
-    const items = Array.isArray(data?.items) ? data.items : [];
+    const items = Array.isArray(visibleData?.items) ? visibleData.items : [];
 
     if (!items.length) {
       const empty = document.createElement('p');
@@ -1380,49 +1534,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const focusReference = normalizeReferenceForUrl(getUrlReadSettings().focus || '') || (isSingleVerseReference ? queryReference : '');
     const itemReferencePosition = getReferencePositionValue();
 
-    items.forEach((item) => {
-      const li = document.createElement('li');
-      const reference = item.reference || 'Reference';
-      const normalizedReference = normalizeReferenceForUrl(reference);
-      li.dataset.reference = normalizedReference;
-      const isFocusedVerse = Boolean(focusReference) && normalizedReference === focusReference;
-      if (isFocusedVerse) {
-        li.classList.add('reading-verse-focus');
-        li.tabIndex = -1;
-      }
-      const shouldLinkReference = Boolean(displayOptions.show_reference_links) && Boolean(item.reference);
-      const referenceNode = shouldLinkReference ? document.createElement('a') : document.createElement('span');
-
-      if (shouldLinkReference) {
-        referenceNode.href = buildReferenceUrl(reference);
-        referenceNode.target = '_blank';
-        referenceNode.rel = 'noopener noreferrer';
-        referenceNode.className = 'result-reference';
-      } else {
-        referenceNode.className = 'result-reference';
-      }
-
-      const strong = document.createElement('strong');
-      strong.textContent = reference;
-      referenceNode.appendChild(strong);
-
-      const verse = document.createElement('span');
-      verse.className = 'verse-text';
-
-      const separator = document.createTextNode(' — ');
-      verse.appendChild(createStyledVerseNode(item, displayOptions));
-
-      if (itemReferencePosition === 'Ref Last') {
-        li.appendChild(verse);
-        li.appendChild(separator);
-        li.appendChild(referenceNode);
-      } else {
-        li.appendChild(referenceNode);
-        li.appendChild(separator);
-        li.appendChild(verse);
-      }
-      list.appendChild(li);
-    });
+    items.forEach((item) => list.appendChild(
+      createResultListItem(item, displayOptions, itemReferencePosition, focusReference)
+    ));
 
     const focusedResult = focusReference
       ? Array.from(list.querySelectorAll('li')).find((li) => normalizeReferenceForUrl(li.dataset.reference || '') === focusReference)
@@ -1441,7 +1555,175 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    appendReadingChapterNavigation('previous');
     results.appendChild(list);
+    appendReadingChapterNavigation('next');
+  }
+
+  function createResultListItem(item, displayOptions, itemReferencePosition, focusReference) {
+    const li = document.createElement('li');
+    const reference = item.reference || 'Reference';
+    const normalizedReference = normalizeReferenceForUrl(reference);
+    li.dataset.reference = normalizedReference;
+    if (focusReference && normalizedReference === focusReference) {
+      li.classList.add('reading-verse-focus');
+      li.tabIndex = -1;
+    }
+    const shouldLinkReference = Boolean(displayOptions.show_reference_links) && Boolean(item.reference);
+    const referenceNode = shouldLinkReference ? document.createElement('a') : document.createElement('span');
+
+    if (shouldLinkReference) {
+      referenceNode.href = buildReferenceUrl(reference);
+      referenceNode.target = '_blank';
+      referenceNode.rel = 'noopener noreferrer';
+    }
+    referenceNode.className = 'result-reference';
+
+    const strong = document.createElement('strong');
+    strong.textContent = reference;
+    referenceNode.appendChild(strong);
+
+    const verse = document.createElement('span');
+    verse.className = 'verse-text';
+    verse.appendChild(createStyledVerseNode(item, displayOptions));
+    const separator = document.createTextNode(' — ');
+
+    if (itemReferencePosition === 'Ref Last') {
+      li.appendChild(verse);
+      li.appendChild(separator);
+      li.appendChild(referenceNode);
+    } else {
+      li.appendChild(referenceNode);
+      li.appendChild(separator);
+      li.appendChild(verse);
+    }
+    return li;
+  }
+
+  function appendMarkdownInlineContent(container, text) {
+    const markdownPattern = /(\*\*[^*\n]+\*\*|__[^_\n]+__|\*[^*\n]+\*|_[^_\n]+_|`[^`\n]+`|\[[^\]\n]+\]\(https?:\/\/[^)\s]+\))/g;
+    let cursor = 0;
+
+    for (const match of text.matchAll(markdownPattern)) {
+      if (match.index > cursor) {
+        container.appendChild(document.createTextNode(text.slice(cursor, match.index)));
+      }
+
+      const token = match[0];
+      let node;
+      if (token.startsWith('**') || token.startsWith('__')) {
+        node = document.createElement('strong');
+        node.textContent = token.slice(2, -2);
+      } else if (token.startsWith('*') || token.startsWith('_')) {
+        node = document.createElement('em');
+        node.textContent = token.slice(1, -1);
+      } else if (token.startsWith('`')) {
+        node = document.createElement('code');
+        node.textContent = token.slice(1, -1);
+      } else {
+        const linkMatch = token.match(/^\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)$/);
+        node = document.createElement('a');
+        node.textContent = linkMatch[1];
+        node.href = linkMatch[2];
+        node.target = '_blank';
+        node.rel = 'noopener noreferrer';
+      }
+      container.appendChild(node);
+      cursor = match.index + token.length;
+    }
+
+    if (cursor < text.length) {
+      container.appendChild(document.createTextNode(text.slice(cursor)));
+    }
+  }
+
+  function appendMarkdownNoteContent(container, text) {
+    let activeList = null;
+    const flushList = () => {
+      activeList = null;
+    };
+
+    String(text).split(/\r?\n/).forEach((line) => {
+      const headingMatch = line.match(/^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/);
+      if (headingMatch) {
+        flushList();
+        const heading = document.createElement(`h${headingMatch[1].length}`);
+        heading.className = 'preserved-note-heading';
+        appendMarkdownInlineContent(heading, headingMatch[2]);
+        container.appendChild(heading);
+        return;
+      }
+
+      const listMatch = line.match(/^\s*[-*+]\s+(.+)$/);
+      if (listMatch) {
+        if (!activeList || activeList.tagName !== 'UL') {
+          activeList = document.createElement('ul');
+          activeList.className = 'preserved-note-list';
+          container.appendChild(activeList);
+        }
+        const item = document.createElement('li');
+        appendMarkdownInlineContent(item, listMatch[1]);
+        activeList.appendChild(item);
+        return;
+      }
+
+      const orderedMatch = line.match(/^\s*\d+[.)]\s+(.+)$/);
+      if (orderedMatch) {
+        if (!activeList || activeList.tagName !== 'OL') {
+          activeList = document.createElement('ol');
+          activeList.className = 'preserved-note-list';
+          container.appendChild(activeList);
+        }
+        const item = document.createElement('li');
+        appendMarkdownInlineContent(item, orderedMatch[1]);
+        activeList.appendChild(item);
+        return;
+      }
+
+      flushList();
+      if (!line.trim()) {
+        const spacer = document.createElement('div');
+        spacer.className = 'preserved-note-spacer';
+        container.appendChild(spacer);
+        return;
+      }
+
+      const paragraph = document.createElement('p');
+      paragraph.className = 'preserved-note-paragraph';
+      appendMarkdownInlineContent(paragraph, line);
+      container.appendChild(paragraph);
+    });
+  }
+
+  function renderPreservedResults(data) {
+    const displayOptions = getDisplayOptions();
+    const blocks = document.createDocumentFragment();
+
+    data.preserved_blocks.forEach((block) => {
+      if (block.type === 'note') {
+        const note = document.createElement('div');
+        note.className = 'preserved-note';
+        appendMarkdownNoteContent(note, String(block.text || ''));
+        blocks.appendChild(note);
+        return;
+      }
+
+      const list = document.createElement('ul');
+      list.className = 'preserved-reference-results';
+      const items = Array.isArray(block.items) ? block.items : [];
+      if (!items.length) {
+        const empty = document.createElement('li');
+        empty.textContent = `No verses found for ${block.source || 'this reference'}.`;
+        list.appendChild(empty);
+      } else {
+        items.forEach((item) => list.appendChild(
+          createResultListItem(item, displayOptions, getReferencePositionValue(), '')
+        ));
+      }
+      blocks.appendChild(list);
+    });
+
+    results.appendChild(blocks);
   }
 
   async function postSearch(intent, query, requestOptions = {}) {
@@ -1458,6 +1740,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ...options,
         highlight: Boolean(displayOptions.highlight),
         lookup_extracted: true,
+        preserve_notes: Boolean(preserveNotesToggle?.checked),
         show_red_letters: Boolean(displayOptions.show_red_letters)
       })
     });
@@ -1525,6 +1808,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const viewData = lastResultsData || {};
     const isPassageMode = (granularitySelect?.value || 'Verse') === 'Passage';
     const readingItems = Array.isArray(viewData.reading_items) ? viewData.reading_items : [];
+
+    if (
+      preserveNotesToggle?.checked &&
+      viewData.query_mode === 'extract' &&
+      Array.isArray(viewData.preserved_blocks) &&
+      viewData.preserved_blocks.length
+    ) {
+      return viewData.preserved_blocks.map((block) => {
+        if (block.type === 'note') {
+          return String(block.text || '');
+        }
+        return (Array.isArray(block.items) ? block.items : [])
+          .map((item) => isPassageMode ? buildPassageCopyText(item) : buildMarkdownTextForItem(item))
+          .filter(Boolean)
+          .join('\n');
+      }).join('').trim();
+    }
 
     if (isPassageMode && readingItems.length) {
       return readingItems
@@ -1599,12 +1899,16 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    selectedInsightBooks.clear();
     window.__LAST_SEARCH_QUERY__ = query;
     updateBrowserTabTitle(query, intent);
     const options = getSearchOptions();
+    const preservingNotes = intent === 'reference' && Boolean(preserveNotesToggle?.checked);
 
     setLoading(true);
-    setStatus(intent === 'reference' ? 'Searching reference...' : 'Searching words...');
+    setStatus(preservingNotes
+      ? 'Looking up references and preserving notes...'
+      : intent === 'reference' ? 'Searching reference...' : 'Searching words...');
 
     try {
       const data = await postSearch(intent, query, options);
@@ -1629,7 +1933,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       renderResults(data);
-      setStatus(intent === 'reference' ? 'Reference search results.' : 'Word search results.');
+      setStatus(preservingNotes
+        ? 'Multi-reference results with notes preserved.'
+        : intent === 'reference' ? 'Reference search results.' : 'Word search results.');
     } catch (error) {
       setStatus(error.message || 'Search failed.', true);
       renderResults({ items: [] });
@@ -1647,8 +1953,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const isSpecificVerseQuery = /^.+\s+\d+\s*[:.]\s*\d+(?:\s*-\s*\d+)?$/i.test(
       typeof query === 'string' ? query.trim() : ''
     );
+    const isChapterQuery = /^.+\s+\d+$/i.test(
+      typeof query === 'string' ? query.trim() : ''
+    );
     const titleContext = isReference
-      ? (isSpecificVerseQuery ? formattedQuery : displayedPassage || formattedQuery)
+      ? (isSpecificVerseQuery || isChapterQuery ? formattedQuery : displayedPassage || formattedQuery)
       : query.trim().split(/\s+/)[0].replace(/^["'“‘([{]+|["'”’)\]}.,;:!?]+$/g, '');
 
     document.title = titleContext ? `${titleContext} | Bible Study Search` : 'Bible Study Search';
@@ -1716,6 +2025,16 @@ document.addEventListener('DOMContentLoaded', () => {
     referenceLinkToggle.addEventListener('change', rerenderForDisplayChange);
   }
 
+  if (preserveNotesToggle) {
+    preserveNotesToggle.addEventListener('change', () => {
+      if (!lastResultsData) return;
+      const activeQuery = (input && input.value.trim()) || window.__LAST_SEARCH_QUERY__ || '';
+      if (activeQuery) {
+        runSearch('reference');
+      }
+    });
+  }
+
   if (referenceStyle) {
     referenceStyle.addEventListener('change', rerenderForDisplayChange);
     referenceStyle.addEventListener('input', rerenderForDisplayChange);
@@ -1732,6 +2051,15 @@ document.addEventListener('DOMContentLoaded', () => {
       updateInlineVerseNumberVisibility();
       if (lastResultsData) {
         renderResults(lastResultsData);
+      }
+    });
+  }
+
+  if (suppressParagraphs) {
+    suppressParagraphs.addEventListener('change', () => {
+      const currentQuery = input?.value.trim() || '';
+      if (currentQuery) {
+        runSearch(looksLikeReferenceQuery(currentQuery) ? 'reference' : 'search');
       }
     });
   }
@@ -1800,6 +2128,22 @@ document.addEventListener('DOMContentLoaded', () => {
     referenceButton.addEventListener('click', () => runSearch('reference'));
   }
 
+  if (multiReferenceButton) {
+    multiReferenceButton.addEventListener('click', () => {
+      if (!input?.value.trim()) {
+        runSearch('reference');
+        return;
+      }
+
+      if (preserveNotesToggle) {
+        preserveNotesToggle.checked = true;
+        saveDisplaySettingsCookie();
+        syncDisplayOptionButtons();
+      }
+      runSearch('reference');
+    });
+  }
+
   if (input) {
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
@@ -1824,14 +2168,59 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  document.querySelectorAll('.display-option-button').forEach((button) => {
+    button.addEventListener('click', () => {
+      const control = document.getElementById(button.dataset.optionControl || '');
+      if (!control) return;
+
+      if (control instanceof HTMLInputElement && control.type === 'checkbox') {
+        control.checked = !control.checked;
+      } else if (control instanceof HTMLSelectElement && control.options.length) {
+        control.selectedIndex = (control.selectedIndex + 1) % control.options.length;
+      }
+      control.dispatchEvent(new Event('change', { bubbles: true }));
+      syncDisplayOptionButtons();
+    });
+  });
+
+  const displaySettingIds = new Set([
+    'granularity',
+    'referenceStyle',
+    'referencePosition',
+    'showRedLetters',
+    'suppressParagraphs',
+    'highlightMatches',
+    'showReferenceLinks',
+    'preserveNotes',
+    'showInlineVerseNumbers'
+  ]);
+  document.addEventListener('change', (event) => {
+    if (displaySettingIds.has(event.target?.id)) {
+      saveDisplaySettingsCookie();
+    }
+  });
+
+  const displayOptionsToggle = document.getElementById('displayOptionsToggle');
+  if (displayOptionsToggle) {
+    displayOptionsToggle.addEventListener('click', () => {
+      const expanded = displayOptionsToggle.getAttribute('aria-expanded') !== 'true';
+      setDisplayOptionsExpanded(expanded);
+    });
+  }
+
+  const mobileDisplayOptions = window.matchMedia('(max-width: 640px)');
+  let wasMobileDisplayOptions = mobileDisplayOptions.matches;
+  setDisplayOptionsExpanded(!wasMobileDisplayOptions);
+
   updateInlineVerseNumberVisibility();
   initTheme();
   syncAccordionState();
-  window.addEventListener('scroll', handleReadingScrollAutoLoad, { passive: true });
-  window.addEventListener('wheel', handleReadingWheelAutoLoad, { passive: true });
-  document.addEventListener('keydown', handleReadingKeyboardAutoLoad);
   window.addEventListener('resize', () => {
     const isMobile = window.matchMedia('(max-width: 640px)').matches;
+    if (isMobile !== wasMobileDisplayOptions) {
+      setDisplayOptionsExpanded(!isMobile);
+      wasMobileDisplayOptions = isMobile;
+    }
     if (!isMobile) {
       accordionToggles.forEach((toggle) => {
         const targetId = toggle.getAttribute('data-target');
@@ -1849,6 +2238,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const initialQuery = window.__INITIAL_QUERY__ || new URLSearchParams(window.location.search).get('q') || '';
+  const savedDisplaySettings = readSavedDisplaySettings();
   const defaultReadSettings = {
     granularity: granularitySelect ? granularitySelect.value : 'Verse',
     highlight: Boolean(highlightToggle ? highlightToggle.checked : true),
@@ -1856,38 +2246,44 @@ document.addEventListener('DOMContentLoaded', () => {
     showReferenceLinks: Boolean(referenceLinkToggle ? referenceLinkToggle.checked : false),
     newLineVerse: Boolean(inlineVerseNumbersToggle ? inlineVerseNumbersToggle.checked : false),
     reference_style: referenceStyle ? referenceStyle.value : 'Wikilink',
-    reference_position: referencePosition ? referencePosition.value : 'Ref First'
+    reference_position: referencePosition ? referencePosition.value : 'Ref First',
+    ...savedDisplaySettings
   };
   const urlSettings = getUrlReadSettings(defaultReadSettings);
   const normalizedInitialQuery = normalizeInitialReadingQuery(initialQuery, urlSettings);
   if (granularitySelect && urlSettings.granularity) {
     granularitySelect.value = urlSettings.granularity;
   }
-  if (highlightToggle && new URLSearchParams(window.location.search).has('highlight')) {
+  if (highlightToggle) {
     highlightToggle.checked = urlSettings.highlight;
   }
-  if (redLetterToggle && new URLSearchParams(window.location.search).has('showRedLetters')) {
+  if (redLetterToggle) {
     redLetterToggle.checked = urlSettings.showRedLetters;
   }
-  if (referenceLinkToggle && new URLSearchParams(window.location.search).has('showReferenceLinks')) {
+  if (referenceLinkToggle) {
     referenceLinkToggle.checked = urlSettings.showReferenceLinks;
   }
+  if (preserveNotesToggle && typeof savedDisplaySettings.preserveNotes === 'boolean') {
+    preserveNotesToggle.checked = savedDisplaySettings.preserveNotes;
+  }
   if (referenceStyle) {
-    const referenceStyleQuery = new URLSearchParams(window.location.search).get('reference_style');
-    if (referenceStyleQuery && ['Wikilink', 'Standard'].includes(referenceStyleQuery)) {
-      referenceStyle.value = referenceStyleQuery;
+    if (['Wikilink', 'Standard'].includes(urlSettings.reference_style)) {
+      referenceStyle.value = urlSettings.reference_style;
     }
   }
   if (referencePosition) {
-    const referencePositionQuery = new URLSearchParams(window.location.search).get('reference_position');
-    if (referencePositionQuery && ['Ref First', 'Ref Last'].includes(referencePositionQuery)) {
-      referencePosition.value = referencePositionQuery;
+    if (['Ref First', 'Ref Last'].includes(urlSettings.reference_position)) {
+      referencePosition.value = urlSettings.reference_position;
     }
   }
-  if (inlineVerseNumbersToggle && new URLSearchParams(window.location.search).has('newLineVerse')) {
+  if (inlineVerseNumbersToggle) {
     inlineVerseNumbersToggle.checked = Boolean(urlSettings.newLineVerse);
   }
+  if (suppressParagraphs && typeof savedDisplaySettings.suppressParagraphs === 'boolean') {
+    suppressParagraphs.checked = savedDisplaySettings.suppressParagraphs;
+  }
   updateInlineVerseNumberVisibility();
+  syncDisplayOptionButtons();
 
   if (normalizedInitialQuery) {
     input.value = normalizedInitialQuery;

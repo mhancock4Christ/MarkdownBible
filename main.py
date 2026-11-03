@@ -158,6 +158,7 @@ class SearchRequest(BaseModel):
     highlight: bool = True
     suppress_paragraph: bool = False
     lookup_extracted: bool = True
+    preserve_notes: bool = False
     context_window: int = 0
     show_red_letters: bool = True
 
@@ -487,9 +488,14 @@ def extract_wikilink_candidates(text):
 
 
 def extract_plain_reference_candidates(text):
+    pattern = build_plain_reference_pattern()
+    return [m.group(1).strip() for m in pattern.finditer(text)]
+
+
+def build_plain_reference_pattern():
     book_re = build_book_regex()
 
-    pattern = re.compile(
+    return re.compile(
         rf"""
         (
             {book_re}
@@ -509,7 +515,66 @@ def extract_plain_reference_candidates(text):
         re.IGNORECASE | re.VERBOSE
     )
 
-    return [m.group(1).strip() for m in pattern.finditer(text)]
+
+def extract_reference_segments(text):
+    matches = []
+    wikilink_pattern = re.compile(r"\[\[([^\]]+)\]\]")
+    protected_spans = []
+    markdown_link_pattern = re.compile(
+        r"(?P<bold>\*\*|__)?\[(?P<label>[^\]\n]+)\]\((?P<target>[^)\n]+)\)(?P=bold)?"
+    )
+
+    for match in markdown_link_pattern.finditer(text):
+        parsed_refs, bad_token = parse_reference_list(match.group("target").strip())
+        if not parsed_refs or bad_token:
+            parsed_refs, bad_token = parse_reference_list(match.group("label").strip())
+        if not parsed_refs or bad_token:
+            continue
+
+        start = match.start()
+        end = match.end()
+        line_start = text.rfind("\n", 0, start) + 1
+        line_prefix = text[line_start:start]
+        if re.fullmatch(r"[ \t]*(?:[-*+][ \t]+)?", line_prefix):
+            start = line_start
+
+        matches.append((start, end, parsed_refs))
+        protected_spans.append((start, end))
+
+    for match in wikilink_pattern.finditer(text):
+        if any(match.start() < end and match.end() > start for start, end in protected_spans):
+            continue
+        parsed_refs, bad_token = parse_reference_list(match.group(1))
+        if parsed_refs and not bad_token:
+            matches.append((match.start(), match.end(), parsed_refs))
+            protected_spans.append((match.start(), match.end()))
+
+    for match in build_plain_reference_pattern().finditer(text):
+        if any(match.start() < end and match.end() > start for start, end in protected_spans):
+            continue
+        parsed_refs, bad_token = parse_reference_list(match.group(1))
+        if parsed_refs and not bad_token:
+            matches.append((match.start(), match.end(), parsed_refs))
+
+    matches.sort(key=lambda item: item[0])
+    segments = []
+    cursor = 0
+    for start, end, parsed_refs in matches:
+        if start < cursor:
+            continue
+        if start > cursor:
+            segments.append({"type": "note", "text": text[cursor:start]})
+        segments.append({
+            "type": "reference",
+            "source": text[start:end],
+            "references": parsed_refs
+        })
+        cursor = end
+
+    if cursor < len(text):
+        segments.append({"type": "note", "text": text[cursor:]})
+
+    return segments
 
 
 def extract_references_from_text(text):
@@ -1492,6 +1557,55 @@ async def config():
         "context_options": [0, 1, 2, 3, 5, 10]
     }
 
+def build_search_insights(rows, query, matched_rows):
+    stop_words = {
+        "about", "after", "again", "against", "also", "and", "are", "because",
+        "been", "before", "being", "but", "for", "from", "had", "has", "have",
+        "her", "here", "him", "his", "how", "into", "its", "may", "more",
+        "not", "our", "out", "shall", "she", "some", "than", "that", "the",
+        "their", "them", "then", "there", "these", "they", "this", "those",
+        "through", "thy", "unto", "was", "were", "what", "when", "where",
+        "which", "who", "will", "with", "you", "your", "thee", "thou", "ye",
+        "hath", "doth", "saith", "thine"
+    }
+    query_words = {word.lower() for word in re.findall(r"[A-Za-z]+", query)}
+    book_counts = {}
+    matched_book_counts = {}
+    word_counts = {}
+
+    for row in rows:
+        book_num = int(row["book"])
+        book_counts[book_num] = book_counts.get(book_num, 0) + 1
+
+        for word in re.findall(r"[A-Za-z]+", row["cleaned_text"]):
+            key = word.lower()
+            if len(key) < 3 or key in stop_words or key in query_words:
+                continue
+            if key not in word_counts:
+                word_counts[key] = {"word": word, "count": 0}
+            word_counts[key]["count"] += 1
+
+    for row in matched_rows:
+        book_num = int(row["book"])
+        matched_book_counts[book_num] = matched_book_counts.get(book_num, 0) + 1
+
+    return {
+        "verse_count": len(rows),
+        "matched_books": [
+            {"book": book_num, "count": count}
+            for book_num, count in sorted(matched_book_counts.items())
+        ],
+        "books": [
+            {"book": book_num, "name": get_book_name(book_num), "count": count}
+            for book_num, count in sorted(book_counts.items())
+        ],
+        "words": sorted(
+            word_counts.values(),
+            key=lambda item: (-item["count"], item["word"].lower())
+        )[:36]
+    }
+
+
 def build_wildcard_summary(rows, regexes, search_mode):
     summary = {}
 
@@ -1554,9 +1668,12 @@ async def search(payload: SearchRequest):
 
         rows = []
         extracted_refs = []
+        preserved_blocks = []
+        preservable_reference_count = 0
         regexes = []
         total_matches = 0
         matched_verses = 0
+        matched_rows = []
         wildcard_summary = []
 
         if mode == "text":
@@ -1614,38 +1731,103 @@ async def search(payload: SearchRequest):
 
         elif mode == "extract":
             extracted_refs = inferred["references"]
+            segments = extract_reference_segments(query)
+            preservable_reference_count = sum(
+                len(segment["references"])
+                for segment in segments
+                if segment["type"] == "reference"
+            )
 
             if payload.lookup_extracted and extracted_refs:
-                target_refs = build_reference_search_targets(extracted_refs)
-                all_rows = []
-                for parsed in target_refs:
-                    all_rows.extend(get_reference_rows(cur, parsed))
+                if payload.preserve_notes:
+                    extracted_refs = [
+                        parsed
+                        for segment in segments
+                        if segment["type"] == "reference"
+                        for parsed in segment["references"]
+                    ]
+                    rows_by_id = {}
+                    for segment in segments:
+                        if segment["type"] == "note":
+                            preserved_blocks.append(segment)
+                            continue
 
-                seen = set()
-                deduped = []
-                for row in all_rows:
-                    key = (row[COL_ID],)
-                    if key not in seen:
-                        seen.add(key)
-                        deduped.append(row)
+                        all_rows = []
+                        for parsed in segment["references"]:
+                            all_rows.extend(get_reference_rows(cur, parsed))
 
-                expanded_raw_rows = fetch_context_rows(cur, deduped, payload.context_window)
-                rows = [normalize_row(row, payload.suppress_paragraph) for row in expanded_raw_rows]
+                        seen = set()
+                        deduped = []
+                        for row in all_rows:
+                            key = (row[COL_ID],)
+                            if key not in seen:
+                                seen.add(key)
+                                deduped.append(row)
+                                rows_by_id[key[0]] = row
+
+                        expanded_raw_rows = fetch_context_rows(cur, deduped, payload.context_window)
+                        normalized_rows = [
+                            normalize_row(row, payload.suppress_paragraph)
+                            for row in expanded_raw_rows
+                        ]
+                        preserved_blocks.append({
+                            "type": "reference",
+                            "source": segment["source"],
+                            "items": build_display_items(
+                                normalized_rows,
+                                payload.granularity,
+                                payload.reference_style,
+                                payload.reference_position,
+                                regexes,
+                                False,
+                                payload.show_red_letters
+                            )
+                        })
+
+                    if preservable_reference_count > 1:
+                        recommended_view = "results"
+                    rows = [
+                        normalize_row(row, payload.suppress_paragraph)
+                        for row in sorted(rows_by_id.values(), key=lambda row: row[COL_ID])
+                    ]
+                    items = [
+                        item
+                        for block in preserved_blocks
+                        if block["type"] == "reference"
+                        for item in block["items"]
+                    ]
+                else:
+                    target_refs = build_reference_search_targets(extracted_refs)
+                    all_rows = []
+                    for parsed in target_refs:
+                        all_rows.extend(get_reference_rows(cur, parsed))
+
+                    seen = set()
+                    deduped = []
+                    for row in all_rows:
+                        key = (row[COL_ID],)
+                        if key not in seen:
+                            seen.add(key)
+                            deduped.append(row)
+
+                    expanded_raw_rows = fetch_context_rows(cur, deduped, payload.context_window)
+                    rows = [normalize_row(row, payload.suppress_paragraph) for row in expanded_raw_rows]
             else:
                 rows = []
 
         else:
             raise HTTPException(status_code=400, detail="Invalid inferred mode.")
 
-        items = build_display_items(
-            rows,
-            payload.granularity,
-            payload.reference_style,
-            payload.reference_position,
-            regexes,
-            mode == "text" and payload.highlight,
-            payload.show_red_letters
-        )
+        if not (mode == "extract" and payload.preserve_notes and payload.lookup_extracted and extracted_refs):
+            items = build_display_items(
+                rows,
+                payload.granularity,
+                payload.reference_style,
+                payload.reference_position,
+                regexes,
+                mode == "text" and payload.highlight,
+                payload.show_red_letters
+            )
 
         reading_items = build_reading_items(
             rows,
@@ -1663,6 +1845,9 @@ async def search(payload: SearchRequest):
             "items": items,
             "reading_items": reading_items,
             "extracted_refs": extracted_refs,
+            "preservable_reference_count": preservable_reference_count,
+            "preserved_blocks": preserved_blocks,
+            "insights": build_search_insights(rows, query, matched_rows),
             "wildcard_summary": wildcard_summary,
             "stats": {
                 "total_matches": total_matches,
