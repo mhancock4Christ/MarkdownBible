@@ -280,6 +280,14 @@ document.addEventListener('DOMContentLoaded', () => {
     return normalized === focusReference || focusReference === normalized;
   }
 
+  function shouldCenterOnReadingFocus(reference) {
+    const focusReference = normalizeReferenceForUrl(reference);
+    const focusChanged = window.__READING_FOCUS_INITIALIZED__ !== focusReference;
+    const shouldCenter = focusChanged || !window.__READING_FOCUS_SCROLL_INITIALIZED__;
+    window.__READING_FOCUS_INITIALIZED__ = focusReference;
+    return shouldCenter;
+  }
+
   function normalizeInitialReadingQuery(rawQuery, readSettings = getUrlReadSettings()) {
     const query = typeof rawQuery === 'string' ? rawQuery.trim() : '';
     if (!query) return '';
@@ -1027,8 +1035,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const focusReference = getUrlReadSettings().focus || window.__READING_FOCUS_REF || '';
     if (focusReference) {
-      const shouldCenterOnLoad = !window.__READING_FOCUS_SCROLL_INITIALIZED__ && window.__READING_FOCUS_INITIALIZED__ !== focusReference;
-      window.__READING_FOCUS_INITIALIZED__ = focusReference;
+      const shouldCenterOnLoad = shouldCenterOnReadingFocus(focusReference);
       window.__READING_FOCUS_REF = focusReference;
       applyReadingVerseFocus(focusReference);
       if (shouldCenterOnLoad) {
@@ -1421,9 +1428,8 @@ document.addEventListener('DOMContentLoaded', () => {
       ? Array.from(list.querySelectorAll('li')).find((li) => normalizeReferenceForUrl(li.dataset.reference || '') === focusReference)
       : null;
     if (focusedResult) {
-      window.__READING_FOCUS_INITIALIZED__ = focusReference;
+      const shouldCenterOnLoad = shouldCenterOnReadingFocus(focusReference);
       window.__READING_FOCUS_REF = focusReference;
-      const shouldCenterOnLoad = !window.__READING_FOCUS_SCROLL_INITIALIZED__ || window.__READING_FOCUS_INITIALIZED__ !== focusReference;
       if (shouldCenterOnLoad) {
         requestAnimationFrame(() => {
           const currentMatch = Array.from(list.querySelectorAll('li')).find((li) => normalizeReferenceForUrl(li.dataset.reference || '') === focusReference);
@@ -1594,6 +1600,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.__LAST_SEARCH_QUERY__ = query;
+    updateBrowserTabTitle(query, intent);
     const options = getSearchOptions();
 
     setLoading(true);
@@ -1601,12 +1608,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const data = await postSearch(intent, query, options);
+      updateBrowserTabTitle(query, intent, data);
 
       const hasApostropheTextQuery = typeof query === 'string' && /['’]/.test(query) && !looksLikeReferenceQuery(query);
 
       if (intent === 'search' && !hasApostropheTextQuery && (Number(data.count || 0) === 0 || !(data.items || []).length)) {
         setStatus('No word search results. Trying reference search...');
         const referenceData = await postSearch('reference', query, options);
+        updateBrowserTabTitle(query, 'reference', referenceData);
 
         if (Number(referenceData.count || 0) === 0 || !(referenceData.items || []).length) {
           renderResults(referenceData);
@@ -1627,6 +1636,52 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       setLoading(false);
     }
+  }
+
+  function updateBrowserTabTitle(query, intent, data = null) {
+    const isReference = intent === 'reference' || looksLikeReferenceQuery(query);
+    const formattedQuery = formatReferenceForBrowserTitle(query);
+    const displayedPassage = formatReferenceForBrowserTitle(
+      data?.reading_items?.[0]?.reference || data?.items?.[0]?.reference
+    );
+    const isSpecificVerseQuery = /^.+\s+\d+\s*[:.]\s*\d+(?:\s*-\s*\d+)?$/i.test(
+      typeof query === 'string' ? query.trim() : ''
+    );
+    const titleContext = isReference
+      ? (isSpecificVerseQuery ? formattedQuery : displayedPassage || formattedQuery)
+      : query.trim().split(/\s+/)[0].replace(/^["'“‘([{]+|["'”’)\]}.,;:!?]+$/g, '');
+
+    document.title = titleContext ? `${titleContext} | Bible Study Search` : 'Bible Study Search';
+  }
+
+  function formatReferenceForBrowserTitle(reference) {
+    const bookAbbreviations = {
+      genesis: 'Gen', exodus: 'Exod', leviticus: 'Lev', numbers: 'Num', deuteronomy: 'Deut',
+      joshua: 'Josh', judges: 'Judg', ruth: 'Ruth', '1 samuel': '1 Sam', '2 samuel': '2 Sam',
+      '1 kings': '1 Kgs', '2 kings': '2 Kgs', '1 chronicles': '1 Chr', '2 chronicles': '2 Chr',
+      ezra: 'Ezra', nehemiah: 'Neh', esther: 'Esth', job: 'Job', psalms: 'Ps', proverbs: 'Prov',
+      ecclesiastes: 'Eccl', 'song of solomon': 'Song', isaiah: 'Isa', jeremiah: 'Jer',
+      lamentations: 'Lam', ezekiel: 'Ezek', daniel: 'Dan', hosea: 'Hos', joel: 'Joel',
+      amos: 'Amos', obadiah: 'Obad', jonah: 'Jonah', micah: 'Mic', nahum: 'Nah',
+      habakkuk: 'Hab', zephaniah: 'Zeph', haggai: 'Hag', zechariah: 'Zech', malachi: 'Mal',
+      matthew: 'Matt', mark: 'Mark', luke: 'Luke', john: 'Jn', acts: 'Acts', romans: 'Rom',
+      '1 corinthians': '1 Cor', '2 corinthians': '2 Cor', galatians: 'Gal', ephesians: 'Eph',
+      philippians: 'Phil', colossians: 'Col', '1 thessalonians': '1 Thess',
+      '2 thessalonians': '2 Thess', '1 timothy': '1 Tim', '2 timothy': '2 Tim',
+      titus: 'Titus', philemon: 'Phlm', hebrews: 'Heb', james: 'Jas', '1 peter': '1 Pet',
+      '2 peter': '2 Pet', '1 john': '1 Jn', '2 john': '2 Jn', '3 john': '3 Jn',
+      jude: 'Jude', revelation: 'Rev'
+    };
+    const text = typeof reference === 'string'
+      ? reference.replace(/^\[\[|\]\]$/g, '').trim()
+      : '';
+    const match = text.match(/^(.+?)\s+(\d+)(?:\s*[:.]\s*(\d+(?:\s*-\s*\d+)?))?$/i);
+    if (!match) return text;
+
+    const bookPart = match[1].trim();
+    const book = bookPart.toLowerCase();
+    const abbreviation = bookAbbreviations[book] || bookPart;
+    return `${abbreviation} ${match[2]}${match[3] ? `:${match[3]}` : ''}`;
   }
 
   const highlightToggle = document.getElementById('highlightMatches');

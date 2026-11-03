@@ -126,3 +126,44 @@ test('verse-mode result lists keep focus and scroll to the selected verse', () =
   const focusLogic = source.includes("const queryReference = normalizeReferenceForUrl") && source.includes("window.__READING_FOCUS_SCROLL_INITIALIZED__ = true;");
   assert.equal(focusLogic, true, 'Verse-mode result lists should follow the same focus-scroll pattern as reading mode');
 });
+
+test('changed verse focus scrolls again after the first focus has initialized', () => {
+  const start = source.indexOf('function shouldCenterOnReadingFocus');
+  const end = source.indexOf('\n  function ', start + 1);
+  assert.notStrictEqual(start, -1, 'shouldCenterOnReadingFocus helper is missing');
+
+  const snippet = source.slice(start, end);
+  const context = vm.createContext({
+    normalizeReferenceForUrl: (reference) => String(reference || '').trim(),
+    window: {
+      __READING_FOCUS_INITIALIZED__: 'John 3:16',
+      __READING_FOCUS_SCROLL_INITIALIZED__: true
+    }
+  });
+  vm.runInContext(`${snippet}; this.shouldCenterOnReadingFocus = shouldCenterOnReadingFocus;`, context);
+
+  assert.equal(context.shouldCenterOnReadingFocus('John 3:20'), true);
+  assert.equal(context.window.__READING_FOCUS_INITIALIZED__, 'John 3:20');
+  assert.equal(context.shouldCenterOnReadingFocus('John 3:20'), false);
+});
+
+test('browser tab title uses the first search term or abbreviated displayed reference', () => {
+  const start = source.indexOf('function updateBrowserTabTitle');
+  const end = source.indexOf('\n  const highlightToggle', start + 1);
+  assert.notStrictEqual(start, -1, 'updateBrowserTabTitle helper is missing');
+
+  const snippet = source.slice(start, end);
+  const context = vm.createContext({
+    document: { title: '' },
+    looksLikeReferenceQuery: (query) => /^John\s+\d+/i.test(query)
+  });
+  vm.runInContext(`${snippet}; this.updateBrowserTabTitle = updateBrowserTabTitle;`, context);
+
+  context.updateBrowserTabTitle('hope peace', 'search');
+  assert.equal(context.document.title, 'hope | Bible Study Search');
+
+  context.updateBrowserTabTitle('John 3:16', 'reference', {
+    reading_items: [{ reference: '[[John 3.1-36]]' }]
+  });
+  assert.equal(context.document.title, 'Jn 3:16 | Bible Study Search');
+});
