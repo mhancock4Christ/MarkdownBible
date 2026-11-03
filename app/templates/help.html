@@ -32,7 +32,8 @@
         <h1>Help</h1>
 
         <h2>Learn the books</h2>
-        <p>Open <strong>Learn the books</strong> to practice putting all 66 Bible books in order. Select each book in sequence; correct picks move into your list and incorrect picks give a hint. The timer starts with your first pick, and completed results are saved in this browser. No account is needed for the public competition board, which shows the 10 fastest times overall and 20 most recent finishes. Display names are checked for common profanity, adult terms, and markup; omitted names appear as Guest. Books are color-coded by category; Acts is grouped with History and Revelation with Prophets.</p>
+        <p>Open <strong>Learn the books</strong> to practice putting all 66 Bible books in order, from Genesis to Revelation. The books begin shuffled in the cloud. Choose the next book in sequence: correct picks move into <strong>Your order</strong>, while a wrong pick stays in the cloud, adds a mistake, and tells you which book is next. The timer starts with your first pick. Use <strong>Start over</strong> to reset the game; after finishing, you can review any books you picked out of order alongside their neighbors.</p>
+        <p>Your time and optional display name are submitted to the public competition board, which lists the 10 fastest times and 20 most recent finishes. You can play without entering a name. Book colors indicate categories; Acts is grouped with History and Revelation with Prophets.</p>
 
         <h2>Search</h2>
         <p>Enter a word or phrase and choose <strong>Search</strong>. If the text search finds no matches, the app tries the input as a Bible reference.</p>
@@ -55,13 +56,17 @@
           <li><strong>Case sensitive:</strong> match the capitalization in your search.</li>
         </ul>
         <p>Choose <strong>Reference</strong> to look up a reference directly. Enter a chapter (for example, <em>John 3</em>) to open it in reading mode; scroll up or down to load the previous or next chapter.</p>
-        <p>Choose <strong>Multi-reference</strong> to find references in pasted notes. This turns on <strong>Preserve notes</strong>, keeping the notes in their original order around the passages, including text after the last reference. Basic Markdown emphasis, inline code, and web links are displayed in notes; Copy retains the original Markdown.</p>
+        <p>Choose <strong>Multi-reference</strong> when you have notes containing more than one Bible reference. Paste the notes into the search box and click the button: the app finds the references and inserts their passages in the same order as the notes. For example, notes such as <code>Read [[John 3:16]]; compare Romans 5:8.</code> can be looked up together. Multi-reference automatically turns on <strong>Preserve notes</strong>.</p>
+        <p><strong>Preserve notes</strong> keeps the text before, between, and after the references—including text after the final reference—in its original place around the passages. Turn it off when you want the passages without the surrounding notes. Basic Markdown emphasis, inline code, and web links are displayed in preserved notes; <strong>Copy</strong> retains the original Markdown.</p>
+
+        <h2>Wikilinks in Markdown</h2>
+        <p>In <strong>Display options</strong>, set <strong>Reference</strong> to <strong>Wikilink</strong> to format a reference like <code>[[John 3.16]]</code>. This is useful when copying results into Markdown notes in apps that support wikilinks, such as Obsidian: the reference becomes a link to a note with that name. Choose <strong>Standard</strong> for conventional references such as <code>John 3:16</code>, or when your Markdown app does not support wikilinks. The reference-position option controls whether the reference appears before or after the verse text.</p>
 
         <h2>What is clickable?</h2>
         <ul>
           <li><strong>Verse references in search results:</strong> when <strong>Links</strong> is on, click a reference to open that verse or chapter in a new tab. Turn <strong>Links</strong> off to display references as plain text. The verse text itself is not a link.</li>
-          <li><strong>Search insights book bars:</strong> click a book to show only that book's results. Ctrl-click (Windows/Linux) or Cmd-click (Mac) to add or remove books from the selection. Click the only selected book again to clear the filter. This filters the results already loaded; it does not start a new search.</li>
-          <li><strong>Word clouds:</strong> click a word under “Other words in these verses” to search for that word. After a wildcard search, click a word form in “Wildcard word forms” to search for that exact form.</li>
+          <li><strong>Search insights book bars:</strong> click a book to show results from that book. Ctrl-click (Windows/Linux) or Cmd-click (Mac) to add or remove books from the selection; a regular click replaces the current book selection. Click the only selected book again to clear the book filter. Book filters can be combined with word filters and affect the results and word cloud already on the page—they do not start a new search.</li>
+          <li><strong>Search insights word cloud:</strong> click a word under “Other words in these verses” to filter the current results to verses containing that word. Select more words to require all selected words; click a selected word again to remove that filter. Ctrl-click (Windows/Linux) or Cmd-click (Mac) a word to open a new search for it in another tab. After a wildcard search, click a word form in “Wildcard word forms” to search for that exact form.</li>
           <li><strong>Reading view:</strong> click a verse number to focus that verse. Use <strong>Load previous chapter</strong> and <strong>Load next chapter</strong> to continue reading.</li>
           <li><strong>Web links in preserved notes:</strong> click a displayed link to open its web address.</li>
         </ul>

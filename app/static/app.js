@@ -570,8 +570,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function syncDisplayOptionButtons() {
-    const hasReadingView = Boolean(document.querySelector('.reading-view'));
     const isPassageMode = (granularitySelect?.value || 'Verse') === 'Passage';
+    const hasReadingView = isPassageMode && (
+      Boolean(document.querySelector('.reading-view')) ||
+      lastResultsData?.recommended_view === 'reading'
+    );
     const canPreserveNotes = lastResultsData?.query_mode === 'extract' &&
       Number(lastResultsData?.preservable_reference_count || lastResultsData?.extracted_refs?.length || 0) > 1;
 
@@ -582,8 +585,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const unavailableMessage = control.id === 'highlightMatches' && hasReadingView
         ? 'Search only'
-        : control.id === 'showReferenceLinks' && hasReadingView && isPassageMode
-          ? 'Verse only'
+        : ['referenceStyle', 'referencePosition', 'showReferenceLinks'].includes(control.id) && hasReadingView
+          ? 'Search results only'
           : control.id === 'showInlineVerseNumbers' && !isPassageMode
             ? 'Passage mode only'
             : control.id === 'preserveNotes' && !canPreserveNotes
