@@ -261,6 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
     name.textContent = books[index].name;
     item.append(number, name);
     orderedBooks.append(item);
+    orderedBooks.scrollTop = orderedBooks.scrollHeight;
     nextBook += 1;
     updateProgress();
     if (nextBook === books.length) {

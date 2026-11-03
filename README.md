@@ -83,6 +83,10 @@ The folder contains:
 - `README.md` and `requirements.txt`
 - `run_app.bat` to launch the packaged app
 
+### Quick EXE build and ZIP
+
+Run `compile_to_exe.bat` to build `dist\Bible_Study.exe`. The script stops any running copy of this app before compiling, then creates `dist\Bible_Study.zip` containing `Bible_Study.exe` and `kjv.sqlite`. The same two files are also copied into `MarkdownBible-Portable\`.
+
 ## Android APK package
 
 The Android package is built with Buildozer and produces an APK for distribution.
