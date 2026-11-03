@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Webster's 1828 Dictionary | Bible Study</title>
+    <link rel="stylesheet" href="/static/styles.css?v=20261103-3" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  </head>
+  <body>
+    <script>
+      document.body.classList.toggle('dark', localStorage.getItem('bibleapp-theme') === 'dark');
+    </script>
+    <div class="app-shell dictionary-shell">
+      <header class="topbar">
+        <div class="app-brand">
+          <span class="app-icon-wrap">
+            <img class="app-icon" src="/favicon.ico" alt="" />
+          </span>
+          <h1>Bible Study</h1>
+        </div>
+        <div class="topbar-actions">
+          <a class="help-link" href="/">Bible search</a>
+          <a class="help-link" href="/learn-books">Learn the books</a>
+          <a class="help-link" href="/help">Help</a>
+          <button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false">
+            Dark mode
+          </button>
+        </div>
+      </header>
+
+      <main class="container dictionary-page">
+        <h2>Webster's 1828 Dictionary</h2>
+        <p>Look up a headword, or use <code>*</code> for any number of characters and <code>?</code> for one character.</p>
+        <form id="dictionarySearchForm" class="dictionary-search-form">
+          <label class="sr-only" for="dictionarySearchInput">Dictionary headword</label>
+          <input
+            id="dictionarySearchInput"
+            name="q"
+            type="search"
+            maxlength="100"
+            autocomplete="off"
+            placeholder="Search a word (e.g. love* or ?ove)"
+            value="{{ initial_query|default('', true) }}"
+            required
+          />
+          <button type="submit" id="dictionarySearchButton">Search</button>
+        </form>
+        <p id="dictionaryStatus" class="status" aria-live="polite"></p>
+        <div id="dictionaryResults" class="dictionary-results" aria-live="polite"></div>
+        <button type="button" id="dictionaryLoadMore" class="secondary dictionary-load-more" hidden>Load more</button>
+      </main>
+    </div>
+
+    <script src="/static/dictionary.js?v=20261103-3"></script>
+  </body>
+</html>

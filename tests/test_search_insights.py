@@ -1,7 +1,10 @@
-from app.main import build_search_insights
+import pytest
+
+from app import main, main_Local
 
 
-def test_search_insights_count_context_words_and_matched_books():
+@pytest.mark.parametrize("app_module", [main, main_Local])
+def test_search_insights_count_context_words_and_matched_books(app_module):
     rows = [
         {"book": 1, "cleaned_text": "The LORD made a bright morning."},
         {"book": 43, "cleaned_text": "Love is patient and bright."},
@@ -9,7 +12,7 @@ def test_search_insights_count_context_words_and_matched_books():
     ]
     matched_rows = [rows[1], rows[2]]
 
-    insights = build_search_insights(rows, "love", matched_rows)
+    insights = app_module.build_search_insights(rows, "love", matched_rows)
 
     assert insights["verse_count"] == 3
     assert insights["books"] == [

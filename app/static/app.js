@@ -6,6 +6,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const searchButton = document.getElementById('searchButton');
   const referenceButton = document.getElementById('referenceButton');
   const multiReferenceButton = document.getElementById('multiReferenceButton');
+  const dictionaryPopover = document.getElementById('dictionaryPopover');
+  const dictionaryPopoverHeadword = document.getElementById('dictionaryPopoverHeadword');
+  const dictionaryPopoverResolution = document.getElementById('dictionaryPopoverResolution');
+  const dictionaryPopoverContent = document.getElementById('dictionaryPopoverContent');
+  const dictionaryPopoverLink = document.getElementById('dictionaryPopoverLink');
+  const dictionaryPopoverClose = document.getElementById('dictionaryPopoverClose');
+  const definitionsToggle = document.getElementById('showDefinitions');
   const searchType = document.getElementById('searchType');
   const bookGroup = document.getElementById('bookGroup');
   const referenceStyle = document.getElementById('referenceStyle');
@@ -80,6 +87,13 @@ document.addEventListener('DOMContentLoaded', () => {
     'hath', 'doth', 'saith', 'thine'
   ]);
   let lastResultsData = null;
+  const dictionaryLookupCache = new Map();
+  let activeDictionaryWord = null;
+  let dictionaryPopoverPinned = false;
+  let suppressDictionaryFocusPreview = false;
+  let dictionaryPopoverRequest = 0;
+  let dictionaryPopoverShowTimer = null;
+  let dictionaryPopoverHideTimer = null;
   let readingNavigationState = {
     entries: [],
     loading: false
@@ -333,6 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
         suppressParagraphs: typeof saved.suppressParagraphs === 'boolean' ? saved.suppressParagraphs : undefined,
         highlight: typeof saved.highlight === 'boolean' ? saved.highlight : undefined,
         showReferenceLinks: typeof saved.showReferenceLinks === 'boolean' ? saved.showReferenceLinks : undefined,
+        showDefinitions: typeof saved.showDefinitions === 'boolean' ? saved.showDefinitions : undefined,
         preserveNotes: typeof saved.preserveNotes === 'boolean' ? saved.preserveNotes : undefined,
         newLineVerse: typeof saved.newLineVerse === 'boolean' ? saved.newLineVerse : undefined
       };
@@ -351,6 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
       suppressParagraphs: Boolean(suppressParagraphs?.checked),
       highlight: Boolean(highlightToggle?.checked),
       showReferenceLinks: Boolean(referenceLinkToggle?.checked),
+      showDefinitions: Boolean(definitionsToggle?.checked),
       preserveNotes: Boolean(preserveNotesToggle?.checked),
       newLineVerse: Boolean(inlineVerseNumbersToggle?.checked)
     };
@@ -850,9 +866,280 @@ document.addEventListener('DOMContentLoaded', () => {
     if (highlighted) node.classList.add('highlight-match');
     if (red) node.classList.add('red-letter');
     if (bracketed) node.classList.add('bracketed-phrase');
-    node.textContent = text;
+    if (!definitionsToggle?.checked) {
+      node.textContent = text;
+      parent.appendChild(node);
+      return;
+    }
+    const wordPattern = /[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu;
+    let cursor = 0;
+    for (const match of text.matchAll(wordPattern)) {
+      if (match.index > cursor) {
+        node.append(document.createTextNode(text.slice(cursor, match.index)));
+      }
+      const word = document.createElement('button');
+      word.type = 'button';
+      word.className = 'dictionary-word';
+      word.dataset.dictionaryWord = match[0];
+      word.setAttribute('aria-label', `Show Webster's definition for ${match[0]}`);
+      word.setAttribute('aria-haspopup', 'dialog');
+      word.setAttribute('aria-controls', 'dictionaryPopover');
+      word.setAttribute('aria-expanded', 'false');
+      word.textContent = match[0];
+      node.append(word);
+      cursor = match.index + match[0].length;
+    }
+    if (cursor < text.length) {
+      node.append(document.createTextNode(text.slice(cursor)));
+    }
     parent.appendChild(node);
   }
+
+  function positionDictionaryPopover(wordButton) {
+    if (!dictionaryPopover || dictionaryPopover.hidden || !wordButton?.isConnected) return;
+    const wordRect = wordButton.getBoundingClientRect();
+    const popoverRect = dictionaryPopover.getBoundingClientRect();
+    const edge = 10;
+    const gap = 8;
+    const left = Math.min(
+      Math.max(edge, wordRect.left),
+      window.innerWidth - popoverRect.width - edge
+    );
+    const belowTop = wordRect.bottom + gap;
+    const top = belowTop + popoverRect.height <= window.innerHeight - edge
+      ? belowTop
+      : Math.max(edge, wordRect.top - popoverRect.height - gap);
+    dictionaryPopover.style.left = `${left}px`;
+    dictionaryPopover.style.top = `${top}px`;
+  }
+
+  function appendDictionaryPopoverEntry(data) {
+    if (!dictionaryPopoverContent) return;
+    dictionaryPopoverContent.replaceChildren();
+
+    const preface = data.definitions.find((definition) => definition.is_headword_preface);
+    if (preface) {
+      const lead = document.createElement('p');
+      lead.className = 'dictionary-popover-lead';
+      const headword = document.createElement('strong');
+      headword.textContent = data.headword.toLocaleUpperCase();
+      lead.append(headword);
+      if (preface.part_of_speech) {
+        lead.append(document.createTextNode(', '));
+        const partOfSpeech = document.createElement('em');
+        partOfSpeech.textContent = preface.part_of_speech;
+        lead.append(partOfSpeech);
+      }
+      if (preface.definition) {
+        lead.append(document.createTextNode(` ${preface.definition}`));
+      }
+      if (preface.etymology) {
+        lead.append(document.createTextNode(` ${preface.etymology}`));
+      }
+      dictionaryPopoverContent.append(lead);
+    }
+
+    const definitions = data.definitions.filter((definition) => !definition.is_headword_preface);
+    if (!definitions.length) {
+      if (!preface) {
+        const message = document.createElement('p');
+        message.textContent = 'No definition text is available.';
+        dictionaryPopoverContent.append(message);
+      }
+      return;
+    }
+
+    const list = document.createElement('ol');
+    const previewDefinitions = definitions.slice(0, 3);
+    previewDefinitions.forEach((definition) => {
+      const item = document.createElement('li');
+      if (definition.part_of_speech) {
+        const partOfSpeech = document.createElement('em');
+        partOfSpeech.className = 'dictionary-popover-pos';
+        partOfSpeech.textContent = `${definition.part_of_speech}. `;
+        item.append(partOfSpeech);
+      }
+      const definitionText = definition.definition || '';
+      item.append(document.createTextNode(
+        definitionText.length > 500
+          ? `${definitionText.slice(0, 497).trimEnd()}…`
+          : definitionText
+      ));
+      if (definition.notes.length) {
+        const notes = document.createElement('span');
+        notes.className = 'dictionary-popover-note';
+        notes.textContent = ` ${definition.notes.join(' ')}`;
+        item.append(notes);
+      }
+      list.append(item);
+    });
+    dictionaryPopoverContent.append(list);
+    const remainingDefinitions = data.definition_count - previewDefinitions.length;
+    if (remainingDefinitions > 0) {
+      const more = document.createElement('p');
+      more.className = 'dictionary-popover-more';
+      more.textContent = `${remainingDefinitions} more definition${remainingDefinitions === 1 ? '' : 's'} available.`;
+      dictionaryPopoverContent.append(more);
+    }
+  }
+
+  async function openDictionaryPopover(wordButton, pinned = false) {
+    if (!definitionsToggle?.checked || !dictionaryPopover || !wordButton?.isConnected || !wordButton.dataset.dictionaryWord) return;
+    if (dictionaryPopoverPinned && !pinned) return;
+    clearTimeout(dictionaryPopoverShowTimer);
+    clearTimeout(dictionaryPopoverHideTimer);
+
+    if (activeDictionaryWord === wordButton && !dictionaryPopover.hidden) {
+      if (pinned) {
+        dictionaryPopoverPinned = true;
+        dictionaryPopover.classList.add('is-pinned');
+      }
+      return;
+    }
+
+    if (activeDictionaryWord && activeDictionaryWord !== wordButton) {
+      activeDictionaryWord.setAttribute('aria-expanded', 'false');
+    }
+    activeDictionaryWord = wordButton;
+    dictionaryPopoverPinned = pinned;
+    wordButton.setAttribute('aria-expanded', 'true');
+    dictionaryPopover.hidden = false;
+    dictionaryPopover.classList.toggle('is-pinned', pinned);
+    dictionaryPopoverContent.textContent = 'Looking up definition…';
+    dictionaryPopoverHeadword.textContent = wordButton.dataset.dictionaryWord;
+    dictionaryPopoverResolution.textContent = '';
+    dictionaryPopoverLink.hidden = true;
+    positionDictionaryPopover(wordButton);
+
+    const requestId = ++dictionaryPopoverRequest;
+    const word = wordButton.dataset.dictionaryWord;
+    try {
+      const cacheKey = word.toLocaleLowerCase();
+      let lookup = dictionaryLookupCache.get(cacheKey);
+      if (!dictionaryLookupCache.has(cacheKey)) {
+        const params = new URLSearchParams({ word });
+        const response = await fetch(`/api/dictionary/lookup?${params}`);
+        const data = await response.json();
+        if (!response.ok) {
+          if (response.status === 404) {
+            lookup = null;
+          } else {
+            throw new Error(data.detail || 'The dictionary lookup failed.');
+          }
+        } else {
+          lookup = data;
+        }
+        dictionaryLookupCache.set(cacheKey, lookup);
+      }
+      if (requestId !== dictionaryPopoverRequest || activeDictionaryWord !== wordButton) return;
+      if (!lookup) {
+        dictionaryPopoverContent.textContent = 'No dictionary entry was found for this word.';
+        return;
+      }
+
+      dictionaryPopoverHeadword.textContent =
+        lookup.headword.charAt(0).toLocaleUpperCase() + lookup.headword.slice(1);
+      dictionaryPopoverResolution.textContent = lookup.is_lemma
+        ? `${word} is a form of ${lookup.headword}.`
+        : '';
+      appendDictionaryPopoverEntry(lookup);
+      dictionaryPopoverLink.href = `/dictionary?q=${encodeURIComponent(lookup.headword)}`;
+      dictionaryPopoverLink.hidden = false;
+      positionDictionaryPopover(wordButton);
+    } catch (error) {
+      if (requestId !== dictionaryPopoverRequest) return;
+      dictionaryPopoverContent.textContent = error.message || 'The dictionary lookup failed.';
+    }
+  }
+
+  function closeDictionaryPopover(returnFocus = false) {
+    if (!dictionaryPopover) return;
+    clearTimeout(dictionaryPopoverShowTimer);
+    clearTimeout(dictionaryPopoverHideTimer);
+    dictionaryPopoverRequest += 1;
+    activeDictionaryWord?.setAttribute('aria-expanded', 'false');
+    const previousWord = activeDictionaryWord;
+    activeDictionaryWord = null;
+    dictionaryPopoverPinned = false;
+    dictionaryPopover.hidden = true;
+    dictionaryPopover.classList.remove('is-pinned');
+    if (returnFocus && previousWord?.isConnected) {
+      suppressDictionaryFocusPreview = true;
+      previousWord.focus({ preventScroll: true });
+      queueMicrotask(() => {
+        suppressDictionaryFocusPreview = false;
+      });
+    }
+  }
+
+  function scheduleDictionaryPopoverClose() {
+    clearTimeout(dictionaryPopoverShowTimer);
+    clearTimeout(dictionaryPopoverHideTimer);
+    dictionaryPopoverHideTimer = setTimeout(() => {
+      if (!dictionaryPopoverPinned) closeDictionaryPopover();
+    }, 250);
+  }
+
+  function scheduleDictionaryPopoverOpen(wordButton) {
+    if (!definitionsToggle?.checked || dictionaryPopoverPinned) return;
+    clearTimeout(dictionaryPopoverShowTimer);
+    clearTimeout(dictionaryPopoverHideTimer);
+    if (activeDictionaryWord === wordButton && !dictionaryPopover.hidden) return;
+    dictionaryPopoverShowTimer = setTimeout(() => {
+      openDictionaryPopover(wordButton);
+    }, 500);
+  }
+
+  results?.addEventListener('pointerover', (event) => {
+    const wordButton = event.target.closest('.dictionary-word');
+    if (wordButton && !wordButton.contains(event.relatedTarget)) {
+      scheduleDictionaryPopoverOpen(wordButton);
+    }
+  });
+  results?.addEventListener('pointerout', (event) => {
+    const wordButton = event.target.closest('.dictionary-word');
+    if (wordButton && !wordButton.contains(event.relatedTarget)) {
+      scheduleDictionaryPopoverClose();
+    }
+  });
+  results?.addEventListener('focusin', (event) => {
+    const wordButton = event.target.closest('.dictionary-word');
+    if (wordButton && !suppressDictionaryFocusPreview) scheduleDictionaryPopoverOpen(wordButton);
+  });
+  results?.addEventListener('focusout', (event) => {
+    if (event.target.closest('.dictionary-word')) scheduleDictionaryPopoverClose();
+  });
+  results?.addEventListener('click', (event) => {
+    const wordButton = event.target.closest('.dictionary-word');
+    if (!wordButton) return;
+    event.preventDefault();
+    if (activeDictionaryWord === wordButton && dictionaryPopoverPinned) {
+      closeDictionaryPopover();
+    } else {
+      openDictionaryPopover(wordButton, true);
+    }
+  });
+  dictionaryPopover?.addEventListener('pointerover', () => clearTimeout(dictionaryPopoverHideTimer));
+  dictionaryPopover?.addEventListener('pointerout', (event) => {
+    if (!dictionaryPopover.contains(event.relatedTarget)) scheduleDictionaryPopoverClose();
+  });
+  dictionaryPopoverClose?.addEventListener('click', () => closeDictionaryPopover(true));
+  document.addEventListener('click', (event) => {
+    if (
+      dictionaryPopoverPinned &&
+      !dictionaryPopover.contains(event.target) &&
+      !event.target.closest('.dictionary-word')
+    ) {
+      closeDictionaryPopover();
+    }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !dictionaryPopover?.hidden) {
+      closeDictionaryPopover(true);
+    }
+  });
+  window.addEventListener('resize', () => positionDictionaryPopover(activeDictionaryWord));
+  window.addEventListener('scroll', () => positionDictionaryPopover(activeDictionaryWord), true);
 
   function getSelectedInsightWordSpans(text) {
     if (!selectedInsightWords.size || !text) return [];
@@ -1565,6 +1852,7 @@ document.addEventListener('DOMContentLoaded', () => {
     lastResultsData = data || null;
     readingNavigationState.entries = [];
     if (!results) return;
+    closeDictionaryPopover();
     results.innerHTML = '';
     updateDisplayOptionsVisibility();
 
@@ -2357,6 +2645,7 @@ document.addEventListener('DOMContentLoaded', () => {
     'suppressParagraphs',
     'highlightMatches',
     'showReferenceLinks',
+    'showDefinitions',
     'preserveNotes',
     'showInlineVerseNumbers'
   ]);
@@ -2364,6 +2653,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (displaySettingIds.has(event.target?.id)) {
       saveDisplaySettingsCookie();
     }
+  });
+  definitionsToggle?.addEventListener('change', () => {
+    if (!definitionsToggle.checked) {
+      closeDictionaryPopover();
+      results?.querySelectorAll('.dictionary-word').forEach((wordButton) => {
+        wordButton.replaceWith(document.createTextNode(wordButton.textContent || ''));
+      });
+    } else if (lastResultsData) {
+      renderResults(lastResultsData);
+    }
+    syncDisplayOptionButtons();
   });
 
   const displayOptionsToggle = document.getElementById('displayOptionsToggle');
@@ -2405,6 +2705,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const initialQuery = window.__INITIAL_QUERY__ || new URLSearchParams(window.location.search).get('q') || '';
   const savedDisplaySettings = readSavedDisplaySettings();
+  if (definitionsToggle && typeof savedDisplaySettings.showDefinitions === 'boolean') {
+    definitionsToggle.checked = savedDisplaySettings.showDefinitions;
+  }
   const defaultReadSettings = {
     granularity: granularitySelect ? granularitySelect.value : 'Verse',
     highlight: Boolean(highlightToggle ? highlightToggle.checked : true),

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Bible</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20261102-16" />
+    <link rel="stylesheet" href="/static/styles.css?v=20261103-4" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261102-1">
   </head>
   <body>
@@ -17,6 +17,7 @@
           <h1>Bible Study</h1>
         </div>
         <div class="topbar-actions">
+          <a class="help-link" href="/dictionary">Dictionary</a>
           <a class="help-link" href="/learn-books">Learn the books</a>
           <a class="help-link" href="/help">Help</a>
           <button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false">
@@ -115,6 +116,24 @@
 
         <div id="status" class="status" aria-live="polite"></div>
         <div id="results" class="results" aria-live="polite"></div>
+        <aside
+          id="dictionaryPopover"
+          class="dictionary-popover"
+          role="dialog"
+          aria-label="Dictionary definition"
+          aria-live="polite"
+          hidden
+        >
+          <div class="dictionary-popover-header">
+            <div>
+              <h2 id="dictionaryPopoverHeadword"></h2>
+              <p id="dictionaryPopoverResolution"></p>
+            </div>
+            <button type="button" id="dictionaryPopoverClose" class="secondary" aria-label="Close definition">×</button>
+          </div>
+          <div id="dictionaryPopoverContent" class="dictionary-popover-content"></div>
+          <a id="dictionaryPopoverLink" class="dictionary-popover-link">Open dictionary entry</a>
+        </aside>
       </main>
 
       <footer id="displayOptions" class="display-options-dock" aria-label="Display options">
@@ -168,6 +187,11 @@
             <input id="showReferenceLinks" type="checkbox" hidden />
           </div>
 
+          <div class="display-option-item">
+            <button type="button" class="display-option-button" data-option-control="showDefinitions" data-option-label="Definitions"></button>
+            <input id="showDefinitions" type="checkbox" checked hidden />
+          </div>
+
           <div id="preserveNotesRow" class="display-option-item" hidden>
             <button type="button" class="display-option-button" data-option-control="preserveNotes" data-option-label="Preserve notes"></button>
             <input id="preserveNotes" type="checkbox" hidden />
@@ -184,6 +208,6 @@
     <script>
       window.__INITIAL_QUERY__ = {{ initial_query|default('', true)|tojson }};
     </script>
-    <script src="/static/app.js?v=20261103-1"></script>
+    <script src="/static/app.js?v=20261103-3"></script>
   </body>
 </html>

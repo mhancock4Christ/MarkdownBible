@@ -386,6 +386,211 @@ body.dark .results li {
   margin-bottom: 0;
 }
 
+.dictionary-shell {
+  padding-bottom: 40px;
+}
+
+.dictionary-page {
+  padding-bottom: 40px;
+}
+
+.dictionary-page h2 {
+  margin: 0 0 8px;
+}
+
+.dictionary-search-form {
+  display: flex;
+  gap: 10px;
+  margin: 18px 0 12px;
+}
+
+.dictionary-search-form input {
+  flex: 1 1 360px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+.dictionary-results {
+  display: grid;
+  gap: 12px;
+}
+
+.dictionary-entry {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.dictionary-entry h3,
+.dictionary-entry p {
+  margin: 0 0 8px;
+}
+
+.dictionary-entry h3 {
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 1.2rem;
+  text-transform: capitalize;
+}
+
+.dictionary-entry-heading {
+  line-height: 1.5;
+}
+
+.dictionary-definition-list {
+  margin: 16px 0 0;
+  padding-left: 1.4em;
+}
+
+.dictionary-definition-item {
+  padding-left: 3px;
+  margin-bottom: 14px;
+  line-height: 1.55;
+}
+
+.dictionary-definition-item:last-child {
+  margin-bottom: 0;
+}
+
+.dictionary-definition-item p {
+  margin-bottom: 6px;
+}
+
+.dictionary-entry p:last-child {
+  margin-bottom: 0;
+}
+
+.dictionary-part-of-speech {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.dictionary-etymology,
+.dictionary-definition {
+  white-space: pre-wrap;
+}
+
+.dictionary-meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.dictionary-load-more {
+  display: block;
+  margin: 16px auto;
+}
+
+.dictionary-load-more[hidden] {
+  display: none;
+}
+
+.dictionary-word {
+  appearance: none;
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  vertical-align: baseline;
+  text-decoration: none;
+  cursor: inherit;
+}
+
+.dictionary-word:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.dictionary-popover {
+  position: fixed;
+  z-index: 1000;
+  width: min(390px, calc(100vw - 20px));
+  max-height: min(65vh, 480px);
+  overflow: auto;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+}
+
+.dictionary-popover[hidden] {
+  display: none;
+}
+
+.dictionary-popover-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.dictionary-popover-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.dictionary-popover-resolution {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.dictionary-popover-header button {
+  min-width: 34px;
+  padding: 5px 9px;
+  line-height: 1;
+}
+
+.dictionary-popover-content p {
+  margin: 0 0 8px;
+  line-height: 1.45;
+}
+
+.dictionary-popover-content ol {
+  margin: 0 0 10px;
+  padding-left: 1.4em;
+}
+
+.dictionary-popover-content li {
+  padding-left: 3px;
+  margin-bottom: 7px;
+  line-height: 1.45;
+}
+
+.dictionary-popover-content li:last-child {
+  margin-bottom: 0;
+}
+
+.dictionary-popover-pos,
+.dictionary-popover-note {
+  color: var(--muted);
+}
+
+.dictionary-popover-link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.dictionary-popover-link[hidden] {
+  display: none;
+}
+
 .reading-chapter-toast {
   position: fixed;
   right: 24px;
@@ -805,6 +1010,18 @@ body.dark .results li {
     padding: 12px;
   }
 
+  .dictionary-search-form {
+    flex-wrap: wrap;
+  }
+
+  .dictionary-search-form input {
+    flex-basis: 100%;
+  }
+
+  .dictionary-shell {
+    padding-bottom: 40px;
+  }
+
   .display-options-dock {
     padding: 8px 12px max(10px, env(safe-area-inset-bottom));
     border-radius: 12px 12px 0 0;
@@ -855,6 +1072,7 @@ body.dark .results li {
   .topbar-actions {
     width: 100%;
     justify-content: flex-end;
+    flex-wrap: wrap;
   }
 }
 
