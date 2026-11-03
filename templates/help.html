@@ -8,34 +8,65 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   </head>
   <body>
-    <main class="container help-page">
-      <h1>Help</h1>
+    <script>
+      document.body.classList.toggle('dark', localStorage.getItem('bibleapp-theme') === 'dark');
+    </script>
+    <div class="app-shell help-shell">
+      <header class="topbar">
+        <div class="app-brand">
+          <span class="app-icon-wrap">
+            <img class="app-icon" src="/favicon.ico" alt="" />
+          </span>
+          <h1>Bible Study</h1>
+        </div>
+        <div class="topbar-actions">
+          <a class="help-link" href="/">Back to search</a>
+          <button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false">
+            Dark mode
+          </button>
+        </div>
+      </header>
 
-      <h2>Search</h2>
-      <p>Enter a word or phrase and choose <strong>Search</strong>. If the text search finds no matches, the app tries the input as a Bible reference.</p>
-      <ul>
-        <li><strong>Search type:</strong> <em>Phrase</em> matches the phrase, <em>All Words</em> requires every word, and <em>Any Word</em> matches at least one word.</li>
-        <li><strong>Book group:</strong> limit results to a group such as Law, Prophets, Psalms, Gospels, or Epistles.</li>
-        <li><strong>Context window:</strong> include the selected number of surrounding verses. Overlapping ranges are combined.</li>
-        <li><strong>Case sensitive:</strong> match the capitalization in your search.</li>
-      </ul>
-      <p>Choose <strong>Reference</strong> to look up a reference directly. Enter a chapter (for example, <em>John 3</em>) to open it in reading mode; scroll up or down to load the previous or next chapter.</p>
-      <p>Choose <strong>Multi-reference</strong> to find references in pasted notes. This turns on <strong>Preserve notes</strong>, keeping the notes in their original order around the passages, including text after the last reference. Basic Markdown emphasis, inline code, and web links are displayed in notes; Copy retains the original Markdown.</p>
+      <main class="container help-page">
+        <h1>Help</h1>
 
-      <h2>Display and navigation</h2>
-      <ul>
-        <li><strong>Group:</strong> show results by individual verse or combine them into passages.</li>
-        <li><strong>Reference:</strong> choose Wikilink or Standard formatting and put the reference first or last.</li>
-        <li><strong>Red Letter, paragraphs, and Highlight Search:</strong> adjust verse styling and search-term highlighting.</li>
-        <li><strong>Links:</strong> show or hide links on Bible references.</li>
-        <li><strong>Newline Verse:</strong> in passage view, start each verse on a new line.</li>
-      </ul>
-      <p>Use the theme button to switch between light and dark mode. Display options are available at the bottom of the search page.</p>
+        <h2>Search</h2>
+        <p>Enter a word or phrase and choose <strong>Search</strong>. If the text search finds no matches, the app tries the input as a Bible reference.</p>
+        <ul>
+          <li><strong>Search type:</strong> <em>Phrase</em> matches the phrase, <em>All Words</em> requires every word, and <em>Any Word</em> matches at least one word.</li>
+          <li><strong>Book group:</strong> limit results to a group such as Law, Prophets, Psalms, Gospels, or Epistles.</li>
+          <li><strong>Context window:</strong> include the selected number of surrounding verses. Overlapping ranges are combined.</li>
+          <li><strong>Case sensitive:</strong> match the capitalization in your search.</li>
+        </ul>
+        <p>Choose <strong>Reference</strong> to look up a reference directly. Enter a chapter (for example, <em>John 3</em>) to open it in reading mode; scroll up or down to load the previous or next chapter.</p>
+        <p>Choose <strong>Multi-reference</strong> to find references in pasted notes. This turns on <strong>Preserve notes</strong>, keeping the notes in their original order around the passages, including text after the last reference. Basic Markdown emphasis, inline code, and web links are displayed in notes; Copy retains the original Markdown.</p>
 
-      <h2>Copy and export</h2>
-      <p>Use <strong>Copy</strong> to copy the results. Choose a format and select <strong>Download</strong> to export as XLSX, Markdown, DOCX, TXT, or CSV.</p>
+        <h2>Display and navigation</h2>
+        <ul>
+          <li><strong>Group:</strong> show results by individual verse or combine them into passages.</li>
+          <li><strong>Reference:</strong> choose Wikilink or Standard formatting and put the reference first or last.</li>
+          <li><strong>Red Letter, paragraphs, and Highlight Search:</strong> adjust verse styling and search-term highlighting.</li>
+          <li><strong>Links:</strong> show or hide links on Bible references.</li>
+          <li><strong>Newline Verse:</strong> in passage view, start each verse on a new line.</li>
+        </ul>
+        <p>Display options are available at the bottom of the search page.</p>
 
-      <p><a href="/">Back to search</a></p>
-    </main>
+        <h2>Copy and export</h2>
+        <p>Use <strong>Copy</strong> to copy the results. Choose a format and select <strong>Download</strong> to export as XLSX, Markdown, DOCX, TXT, or CSV.</p>
+      </main>
+    </div>
+    <script>
+      const themeToggle = document.getElementById('themeToggle');
+      const isDark = document.body.classList.contains('dark');
+      themeToggle.setAttribute('aria-pressed', String(isDark));
+      themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
+      themeToggle.addEventListener('click', () => {
+        const nextTheme = document.body.classList.contains('dark') ? 'light' : 'dark';
+        localStorage.setItem('bibleapp-theme', nextTheme);
+        document.body.classList.toggle('dark', nextTheme === 'dark');
+        themeToggle.setAttribute('aria-pressed', String(nextTheme === 'dark'));
+        themeToggle.textContent = nextTheme === 'dark' ? 'Light mode' : 'Dark mode';
+      });
+    </script>
   </body>
 </html>

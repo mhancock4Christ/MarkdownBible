@@ -1093,7 +1093,42 @@ body.dark .word-cloud-link[data-tone="4"] {
 }
 
 .help-page {
+  padding: clamp(20px, 4vw, 36px);
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(31, 41, 55, 0.06);
+}
+
+.help-shell {
+  padding-bottom: 32px;
+}
+
+.help-page h1 {
+  margin: 0 0 1.25rem;
+  font-size: clamp(1.5rem, 3vw, 1.9rem);
+  letter-spacing: -0.035em;
+}
+
+.help-page h2 {
+  margin: 1.8rem 0 0.6rem;
+  font-size: 1.15rem;
+  letter-spacing: -0.015em;
+}
+
+.help-page h2:first-of-type {
+  margin-top: 0;
+}
+
+.help-page p,
+.help-page li {
+  line-height: 1.65;
+}
+
+.help-page ul {
+  padding-left: 1.35rem;
+}
+
+.help-page li + li {
+  margin-top: 0.35rem;
 }
