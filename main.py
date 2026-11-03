@@ -121,9 +121,12 @@ BOOK_ALIASES = {
 
 BOOK_GROUPS = {
     "All Books": list(range(1, 67)),
+    "Old Testament": list(range(1, 40)),
+    "New Testament": list(range(40, 67)),
     "Law": [1, 2, 3, 4, 5],
-    "Prophets": [23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39],
-    "Psalms": [19],
+    "History": list(range(6, 18)),
+    "Poetry": [18, 19, 20, 21, 22],
+    "Prophets": list(range(23, 40)),
     "Gospels": [40, 41, 42, 43],
     "Epistles": [45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65],
 }
@@ -1556,6 +1559,14 @@ async def config():
         "reference_positions": ["Ref First", "Ref Last"],
         "context_options": [0, 1, 2, 3, 5, 10]
     }
+
+@app.get("/learn-books", response_class=HTMLResponse)
+async def learn_books_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="learn_books.html",
+        context={}
+    )
 
 def build_search_insights(rows, query, matched_rows):
     stop_words = {

@@ -1005,6 +1005,11 @@ button.word-cloud-link:hover {
   box-shadow: 0 3px 9px rgba(31, 41, 55, 0.16);
 }
 
+button.word-cloud-link[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
 button.word-cloud-link:focus-visible,
 .insights-toggle:focus-visible {
   outline: 3px solid var(--accent);
@@ -1131,4 +1136,463 @@ body.dark .word-cloud-link[data-tone="4"] {
 
 .help-page li + li {
   margin-top: 0.35rem;
+}
+
+.learn-shell {
+  padding-bottom: 32px;
+}
+
+.learn-page {
+  display: grid;
+  gap: 18px;
+  padding-bottom: 28px;
+}
+
+.learn-intro,
+.learn-controls,
+.learn-cloud-panel,
+.learn-order-panel,
+.learn-legend-panel,
+.learn-results-panel {
+  padding: clamp(18px, 3vw, 26px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: 0 4px 14px rgba(31, 41, 55, 0.06);
+}
+
+.learn-intro {
+  padding-top: clamp(24px, 4vw, 36px);
+  padding-bottom: clamp(24px, 4vw, 36px);
+  background:
+    radial-gradient(ellipse at top right, rgba(96, 165, 250, 0.17), transparent 50%),
+    var(--panel);
+}
+
+.learn-eyebrow {
+  margin: 0 0 8px;
+  color: var(--accent-dark);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.learn-intro h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 4vw, 2.7rem);
+  letter-spacing: -0.045em;
+}
+
+.learn-intro > p:last-child {
+  max-width: 720px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.learn-controls {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.learn-player {
+  display: grid;
+  gap: 7px;
+  min-width: min(100%, 260px);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.learn-optional {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+.learn-player input {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.learn-player input:focus-visible,
+.book-cloud-item:focus-visible,
+.learn-clear-results:focus-visible,
+.learn-restart:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.learn-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.learn-stat {
+  display: grid;
+  gap: 2px;
+  min-width: 76px;
+}
+
+.learn-stat-label {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.learn-stat strong {
+  font-size: 1.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.learn-restart,
+.learn-clear-results {
+  background: var(--secondary);
+  color: var(--text);
+}
+
+.learn-status {
+  min-height: 24px;
+  margin: -4px 4px;
+  color: var(--text);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.learn-alert {
+  margin: -12px 4px 0;
+  color: var(--error);
+  line-height: 1.5;
+}
+
+.learn-alert:empty {
+  display: none;
+}
+
+.learn-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(250px, 0.8fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.learn-cloud-panel,
+.learn-order-panel,
+.learn-results-panel {
+  min-width: 0;
+}
+
+.learn-section-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.learn-section-heading h2,
+.learn-legend-panel h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+}
+
+.learn-section-heading p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.learn-cloud-count {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--secondary);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.book-cloud {
+  display: flex;
+  min-height: 310px;
+  align-content: center;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  padding: 16px 4px;
+  border-radius: 12px;
+  background:
+    radial-gradient(ellipse, rgba(96, 165, 250, 0.08), transparent 72%),
+    var(--bg);
+}
+
+.book-cloud-item {
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: var(--cloud-size, 1rem);
+  font-weight: 700;
+  line-height: 1.1;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.book-cloud-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(31, 41, 55, 0.15);
+}
+
+.book-cloud-item.book-cloud-wrong {
+  animation: book-order-wrong 260ms ease-in-out;
+}
+
+.category-law {
+  border-color: #e8c86d;
+  background: #fff4d6;
+  color: #775000;
+}
+
+.category-history {
+  border-color: #9acfb0;
+  background: #e5f4ec;
+  color: #176341;
+}
+
+.category-poetry {
+  border-color: #c4abea;
+  background: #f0e8ff;
+  color: #59399b;
+}
+
+.category-prophets {
+  border-color: #9fc2eb;
+  background: #e2efff;
+  color: #214e91;
+}
+
+.category-gospels {
+  border-color: #efb29a;
+  background: #ffe9e2;
+  color: #9a3e22;
+}
+
+.category-epistles {
+  border-color: #e5a5c4;
+  background: #fce7f3;
+  color: #8a285a;
+}
+
+body.dark .category-law {
+  border-color: #8f7131;
+  background: #493c20;
+  color: #ffe3a0;
+}
+
+body.dark .category-history {
+  border-color: #397c58;
+  background: #213d30;
+  color: #a9e3bf;
+}
+
+body.dark .category-poetry {
+  border-color: #765ca3;
+  background: #362d49;
+  color: #d7c0ff;
+}
+
+body.dark .category-prophets {
+  border-color: #4c77ab;
+  background: #263b55;
+  color: #b7d6ff;
+}
+
+body.dark .category-gospels {
+  border-color: #9a6048;
+  background: #4a3028;
+  color: #ffc0a5;
+}
+
+body.dark .category-epistles {
+  border-color: #965374;
+  background: #482b3b;
+  color: #f2b8d5;
+}
+
+.ordered-books {
+  display: grid;
+  gap: 5px;
+  max-height: 470px;
+  margin: 0;
+  padding: 0 5px 0 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.ordered-book {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 5px 9px;
+  border: 1px solid;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.ordered-book-number {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(31, 41, 55, 0.1);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.book-legend {
+  display: flex;
+  gap: 9px 16px;
+  flex-wrap: wrap;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.book-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.legend-swatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+}
+
+.legend-swatch.category-law { background: #fff4d6; color: #775000; }
+.legend-swatch.category-history { background: #e5f4ec; color: #176341; }
+.legend-swatch.category-poetry { background: #f0e8ff; color: #59399b; }
+.legend-swatch.category-prophets { background: #e2efff; color: #214e91; }
+.legend-swatch.category-gospels { background: #ffe9e2; color: #9a3e22; }
+.legend-swatch.category-epistles { background: #fce7f3; color: #8a285a; }
+
+body.dark .legend-swatch.category-law { background: #493c20; color: #ffe3a0; }
+body.dark .legend-swatch.category-history { background: #213d30; color: #a9e3bf; }
+body.dark .legend-swatch.category-poetry { background: #362d49; color: #d7c0ff; }
+body.dark .legend-swatch.category-prophets { background: #263b55; color: #b7d6ff; }
+body.dark .legend-swatch.category-gospels { background: #4a3028; color: #ffc0a5; }
+body.dark .legend-swatch.category-epistles { background: #482b3b; color: #f2b8d5; }
+
+.learn-category-note,
+.learn-empty-results {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.learn-results-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.learn-results-table th,
+.learn-results-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.learn-results-table th {
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.learn-results-table td:nth-child(2),
+.learn-results-table td:nth-child(3) {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes book-order-wrong {
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@media (max-width: 760px) {
+  .learn-board {
+    grid-template-columns: 1fr;
+  }
+
+  .ordered-books {
+    max-height: 300px;
+  }
+}
+
+@media (max-width: 520px) {
+  .learn-controls {
+    align-items: stretch;
+  }
+
+  .learn-stats {
+    justify-content: space-between;
+  }
+
+  .learn-stat {
+    min-width: 62px;
+  }
+
+  .learn-restart {
+    padding: 9px 10px;
+  }
+
+  .learn-section-heading {
+    align-items: center;
+  }
+
+  .learn-results-table th,
+  .learn-results-table td {
+    padding-right: 4px;
+    padding-left: 4px;
+    font-size: 0.78rem;
+  }
+
+  .learn-results-table th {
+    font-size: 0.66rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book-cloud-item {
+    transition: none;
+  }
+
+  .book-cloud-item.book-cloud-wrong {
+    animation: none;
+  }
 }

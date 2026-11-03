@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Bible</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20261102-15" />
+    <link rel="stylesheet" href="/static/styles.css?v=20261102-16" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico?v=20261102-1">
   </head>
   <body>
@@ -17,6 +17,7 @@
           <h1>Bible Study</h1>
         </div>
         <div class="topbar-actions">
+          <a class="help-link" href="/learn-books">Learn the books</a>
           <a class="help-link" href="/help">Help</a>
           <button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false">
             Dark mode
@@ -64,9 +65,12 @@
                   <span>Book group</span>
                   <select id="bookGroup">
                     <option value="All Books">All Books</option>
+                    <option value="Old Testament">Old Testament</option>
+                    <option value="New Testament">New Testament</option>
                     <option value="Law">Law</option>
+                    <option value="History">History</option>
+                    <option value="Poetry">Poetry</option>
                     <option value="Prophets">Prophets</option>
-                    <option value="Psalms">Psalms</option>
                     <option value="Gospels">Gospels</option>
                     <option value="Epistles">Epistles</option>
                   </select>
@@ -180,6 +184,6 @@
     <script>
       window.__INITIAL_QUERY__ = {{ initial_query|default('', true)|tojson }};
     </script>
-    <script src="/static/app.js?v=20261102-22"></script>
+    <script src="/static/app.js?v=20261102-26"></script>
   </body>
 </html>

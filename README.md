@@ -30,6 +30,10 @@ http://127.0.0.1:8000/
 
 Open **Help** from the app's top bar, or visit `http://127.0.0.1:8000/help`. The help page covers text and reference search, multi-reference note preservation, reading mode, display options, and exports.
 
+## Learn the books
+
+Open **Learn the books** from the top bar, or visit `http://127.0.0.1:8000/learn-books`. Select all 66 books in canonical order. The game includes a timer, category colors, audio feedback, and optional player names. Completed results are stored in browser local storage on that device and can be cleared from the game page.
+
 ## Server deployment
 
 The deployment scripts copy the app entry point and database, the HTML templates and static assets, the README and dependency list, both icon files, the packaging scripts, and the deployment scripts:

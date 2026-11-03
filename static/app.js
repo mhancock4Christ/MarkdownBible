@@ -68,6 +68,17 @@ document.addEventListener('DOMContentLoaded', () => {
     BOOK_NUMBER_BY_NAME[key.toLowerCase()] = BOOK_NUMBER_BY_NAME[name.toLowerCase()];
   });
   const selectedInsightBooks = new Set();
+  const selectedInsightWords = new Set();
+  const insightStopWords = new Set([
+    'about', 'after', 'again', 'against', 'also', 'and', 'are', 'because',
+    'been', 'before', 'being', 'but', 'for', 'from', 'had', 'has', 'have',
+    'her', 'here', 'him', 'his', 'how', 'into', 'its', 'may', 'more',
+    'not', 'our', 'out', 'shall', 'she', 'some', 'than', 'that', 'the',
+    'their', 'them', 'then', 'there', 'these', 'they', 'this', 'those',
+    'through', 'thy', 'unto', 'was', 'were', 'what', 'when', 'where',
+    'which', 'who', 'will', 'with', 'you', 'your', 'thee', 'thou', 'ye',
+    'hath', 'doth', 'saith', 'thine'
+  ]);
   let lastResultsData = null;
   let readingNavigationState = {
     entries: [],
@@ -840,15 +851,32 @@ document.addEventListener('DOMContentLoaded', () => {
     parent.appendChild(node);
   }
 
+  function getSelectedInsightWordSpans(text) {
+    if (!selectedInsightWords.size || !text) return [];
+    const spans = [];
+    const wordPattern = /[A-Za-z]+/g;
+    let match;
+    while ((match = wordPattern.exec(text)) !== null) {
+      if (selectedInsightWords.has(match[0].toLowerCase())) {
+        spans.push([match.index, match.index + match[0].length]);
+      }
+    }
+    return spans;
+  }
+
   function createStyledVerseNode(item, options = {}) {
     const text = String(item?.verse_text || '');
     if (!text) {
       return document.createTextNode('');
     }
 
+    const highlightSpans = [
+      ...(Array.isArray(item?.highlight_spans) ? item.highlight_spans : []),
+      ...getSelectedInsightWordSpans(text)
+    ];
     const slices = buildVerseSlices(
       text,
-      Array.isArray(item?.highlight_spans) ? item.highlight_spans : [],
+      highlightSpans,
       Array.isArray(item?.segments) ? item.segments : [],
       Boolean(options.highlight),
       Boolean(options.show_red_letters)
@@ -873,6 +901,47 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderSearchInsights(data) {
     const insights = data?.insights;
     if (!insights || !insights.verse_count) return;
+
+    const insightVerses = getInsightVerses(data);
+    const queryWords = new Set(
+      ((window.__LAST_SEARCH_QUERY__ || '').match(/[A-Za-z]+/g) || [])
+        .map((word) => word.toLowerCase())
+    );
+    const booksBySelectedWords = new Map();
+    insightVerses.forEach((verse) => {
+      if (!matchesSelectedInsightWords(verse.text)) return;
+      booksBySelectedWords.set(verse.book, (booksBySelectedWords.get(verse.book) || 0) + 1);
+    });
+    const visibleBooks = (Array.isArray(insights.books) ? insights.books : [])
+      .filter((book) => !selectedInsightWords.size || booksBySelectedWords.has(Number(book.book)) || selectedInsightBooks.has(Number(book.book)))
+      .map((book) => ({
+        ...book,
+        count: selectedInsightWords.size
+          ? booksBySelectedWords.get(Number(book.book)) || 0
+          : Number(book.count) || 0
+      }));
+
+    let visibleWords = Array.isArray(insights.words) ? insights.words : [];
+    if (selectedInsightBooks.size && insightVerses.length) {
+      const wordCounts = new Map();
+      insightVerses.forEach((verse) => {
+        if (!selectedInsightBooks.has(verse.book)) return;
+        (verse.text.match(/[A-Za-z]+/g) || []).forEach((word) => {
+          const key = word.toLowerCase();
+          if (key.length < 3 || insightStopWords.has(key) || queryWords.has(key)) return;
+          if (!wordCounts.has(key)) wordCounts.set(key, { word, count: 0 });
+          wordCounts.get(key).count += 1;
+        });
+      });
+      visibleWords = Array.from(wordCounts.values())
+        .sort((left, right) => right.count - left.count || left.word.toLowerCase().localeCompare(right.word.toLowerCase()))
+        .slice(0, 36);
+      selectedInsightWords.forEach((selectedWord) => {
+        if (!visibleWords.some((entry) => entry.word.toLowerCase() === selectedWord)) {
+          visibleWords.push(wordCounts.get(selectedWord) || { word: selectedWord, count: 0 });
+        }
+      });
+    }
 
     const wrapper = document.createElement('section');
     wrapper.className = 'search-insights';
@@ -913,15 +982,14 @@ document.addEventListener('DOMContentLoaded', () => {
     bookSection.appendChild(bookHeading);
     const bookHint = document.createElement('p');
     bookHint.className = 'insights-hint';
-    bookHint.textContent = 'Click a book to filter; Ctrl/Cmd-click to select multiple.';
+    bookHint.textContent = 'Click a book to filter results and the word cloud; Ctrl/Cmd-click to select multiple.';
     bookSection.appendChild(bookHint);
 
-    const books = Array.isArray(insights.books) ? insights.books : [];
-    const maxBookCount = Math.max(1, ...books.map((book) => Number(book.count) || 0));
+    const maxBookCount = Math.max(1, ...visibleBooks.map((book) => Number(book.count) || 0));
     const bookChart = document.createElement('div');
     bookChart.className = 'book-chart';
     bookChart.setAttribute('aria-label', 'Verses returned by book');
-    books.forEach((book, index) => {
+    visibleBooks.forEach((book, index) => {
       const row = document.createElement('button');
       row.type = 'button';
       row.className = 'book-bar-row';
@@ -974,9 +1042,16 @@ document.addEventListener('DOMContentLoaded', () => {
     wordHeading.textContent = 'Other words in these verses';
     wordSection.appendChild(wordHeading);
 
-    const words = Array.isArray(insights.words) ? insights.words : [];
+    const words = visibleWords;
     if (words.length) {
-      const maxWordCount = Math.max(1, ...words.map((word) => Number(word.count) || 0));
+      const wordHint = document.createElement('p');
+      wordHint.className = 'insights-hint';
+      wordHint.textContent = 'Click words to filter results (all selected words must match); the book list updates to match. Ctrl/Cmd-click opens a word search in a new tab.';
+      wordSection.appendChild(wordHint);
+
+      const wordCounts = words.map((word) => Number(word.count) || 0);
+      const minWordCount = Math.min(...wordCounts);
+      const maxWordCount = Math.max(...wordCounts);
       const cloud = document.createElement('div');
       cloud.className = 'word-cloud';
       words.forEach((entry, index) => {
@@ -984,16 +1059,16 @@ document.addEventListener('DOMContentLoaded', () => {
         button.type = 'button';
         button.className = 'word-cloud-link';
         button.dataset.tone = String(index % 5);
-        const size = 0.82 + (Number(entry.count) / maxWordCount) * 0.85;
+        const count = Number(entry.count) || 0;
+        const size = minWordCount === maxWordCount
+          ? 1.375
+          : 0.75 + ((count - minWordCount) / (maxWordCount - minWordCount)) * 1.25;
         button.style.fontSize = `${size.toFixed(2)}rem`;
         button.textContent = entry.word;
-        button.title = `${entry.word}: ${entry.count} occurrences. Search this word.`;
-        button.setAttribute('aria-label', `Search for ${entry.word}, found ${entry.count} times`);
-        button.addEventListener('click', () => {
-          if (!input || !form) return;
-          input.value = entry.word;
-          runSearch('search');
-        });
+        button.title = `${entry.word}: ${entry.count} occurrences. Click to filter results; Ctrl/Cmd-click to search in a new tab.`;
+        button.setAttribute('aria-label', `Filter results by ${entry.word}, found ${entry.count} times`);
+        button.setAttribute('aria-pressed', String(selectedInsightWords.has(entry.word.toLowerCase())));
+        button.addEventListener('click', (event) => handleWordCloudClick(event, entry.word));
         cloud.appendChild(button);
       });
       wordSection.appendChild(cloud);
@@ -1015,6 +1090,69 @@ document.addEventListener('DOMContentLoaded', () => {
     results.appendChild(wrapper);
   }
 
+  function getInsightVerses(data) {
+    const verses = [];
+    (Array.isArray(data?.reading_items) ? data.reading_items : []).forEach((item) => {
+      (Array.isArray(item?.paragraphs) ? item.paragraphs : []).forEach((paragraph) => {
+        (Array.isArray(paragraph) ? paragraph : []).forEach((verse) => {
+          verses.push({ book: Number(item.book), text: String(verse?.text || '') });
+        });
+      });
+    });
+    if (verses.length) return verses;
+
+    return (Array.isArray(data?.items) ? data.items : []).map((item) => ({
+      book: Number(item?.book),
+      text: String(item?.verse_text || '')
+    }));
+  }
+
+  function handleWordCloudClick(event, word) {
+    if (event.ctrlKey || event.metaKey) {
+      const url = new URL(window.location.href);
+      url.search = '';
+      url.hash = '';
+      url.searchParams.set('q', word);
+      window.open(url.toString(), '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    const key = word.toLowerCase();
+    if (selectedInsightWords.has(key)) {
+      selectedInsightWords.delete(key);
+    } else {
+      selectedInsightWords.add(key);
+    }
+    renderResults(lastResultsData);
+  }
+
+  function matchesSelectedInsightWords(text) {
+    if (!selectedInsightWords.size) return true;
+    const words = new Set(String(text || '').toLowerCase().match(/[a-z]+/g) || []);
+    return Array.from(selectedInsightWords).every((word) => words.has(word));
+  }
+
+  function matchesSelectedWordsInReadingItem(item) {
+    if (!selectedInsightWords.size) return true;
+    const paragraphs = Array.isArray(item?.paragraphs) ? item.paragraphs : [];
+    return paragraphs.some((paragraph) =>
+      Array.isArray(paragraph) && paragraph.some((verse) => matchesSelectedInsightWords(verse?.text))
+    );
+  }
+
+  function filterReadingItemBySelectedWords(item) {
+    if (!selectedInsightWords.size) return item;
+    const paragraphs = Array.isArray(item?.paragraphs) ? item.paragraphs : [];
+    return {
+      ...item,
+      paragraphs: paragraphs
+        .map((paragraph) => Array.isArray(paragraph)
+          ? paragraph.filter((verse) => matchesSelectedInsightWords(verse?.text))
+          : [])
+        .filter((paragraph) => paragraph.length)
+    };
+  }
+
   function renderWildcardSummary(data) {
     const summary = Array.isArray(data?.wildcard_summary) ? data.wildcard_summary : [];
     const query = typeof data?.query === 'string' ? data.query : window.__LAST_SEARCH_QUERY__;
@@ -1027,6 +1165,11 @@ document.addEventListener('DOMContentLoaded', () => {
     heading.textContent = 'Wildcard word forms';
     wrapper.appendChild(heading);
 
+    const hint = document.createElement('p');
+    hint.className = 'insights-hint';
+    hint.textContent = 'Click a form to filter results (all selected words must match); click again to remove. Ctrl/Cmd-click opens a word search in a new tab.';
+    wrapper.appendChild(hint);
+
     const cloud = document.createElement('div');
     cloud.className = 'word-cloud';
     const maxMatches = Math.max(1, ...summary.map((entry) => Number(entry.matches) || 0));
@@ -1037,15 +1180,12 @@ document.addEventListener('DOMContentLoaded', () => {
       button.dataset.tone = String(index % 5);
       const matches = Number(entry.matches) || 0;
       const verses = Number(entry.verses) || 0;
-      button.style.fontSize = `${(0.82 + (matches / maxMatches) * 0.55).toFixed(2)}rem`;
+      button.style.fontSize = `${(0.75 + (matches / maxMatches) * 1.25).toFixed(2)}rem`;
       button.textContent = `${entry.word} (${matches})`;
-      button.title = `${entry.word}: ${matches} occurrences in ${verses} verses. Search this word.`;
-      button.setAttribute('aria-label', `Search for ${entry.word}, found ${matches} times in ${verses} verses`);
-      button.addEventListener('click', () => {
-        if (!input) return;
-        input.value = entry.word;
-        runSearch('search');
-      });
+      button.title = `${entry.word}: ${matches} occurrences in ${verses} verses. Click to filter results; Ctrl/Cmd-click to search in a new tab.`;
+      button.setAttribute('aria-label', `Filter results by ${entry.word}, found ${matches} times in ${verses} verses`);
+      button.setAttribute('aria-pressed', String(selectedInsightWords.has(entry.word.toLowerCase())));
+      button.addEventListener('click', (event) => handleWordCloudClick(event, entry.word));
       cloud.appendChild(button);
     });
 
@@ -1110,37 +1250,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderReadingVerseSegments(verse, options = {}) {
     const showRedLetters = Boolean(options.showRedLetters ?? getUrlReadSettings().showRedLetters ?? true);
+    const showHighlights = Boolean(highlightToggle?.checked ?? getUrlReadSettings().highlight);
     const wrap = document.createElement('span');
     const segments = Array.isArray(verse?.segments) ? verse.segments : [];
 
-    if (!segments.length) {
-      const parts = splitBracketedText(String(verse?.text ?? ''));
-      parts.forEach(({ text: partText, bracketed }) => {
-        const el = document.createElement('span');
-        if (bracketed) {
-          el.classList.add('bracketed-phrase');
-        }
-        el.textContent = partText;
-        wrap.appendChild(el);
+    const renderSegment = (segmentText, red = false) => {
+      if (!segmentText) return;
+
+      buildVerseSlices(
+        segmentText,
+        getSelectedInsightWordSpans(segmentText),
+        [],
+        showHighlights,
+        false
+      ).forEach(({ text: sliceText, highlighted }) => {
+        splitBracketedText(sliceText).forEach(({ text: partText, bracketed }) => {
+          appendStyledTextSegment(wrap, partText, {
+            bracketed,
+            highlighted,
+            red: showRedLetters && red
+          });
+        });
       });
+    };
+
+    if (!segments.length) {
+      renderSegment(String(verse?.text ?? ''));
       return wrap;
     }
 
     segments.forEach((segment) => {
-      const segmentText = String(segment?.text ?? '');
-      if (!segmentText) return;
-
-      splitBracketedText(segmentText).forEach(({ text: partText, bracketed }) => {
-        const el = document.createElement('span');
-        if (bracketed) {
-          el.classList.add('bracketed-phrase');
-        }
-        if (showRedLetters && segment.red) {
-          el.classList.add('red-letter');
-        }
-        el.textContent = partText;
-        wrap.appendChild(el);
-      });
+      renderSegment(String(segment?.text ?? ''), Boolean(segment?.red));
     });
 
     return wrap;
@@ -1427,18 +1567,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const activeGranularity = granularitySelect?.value || 'Verse';
     const selectedBooks = selectedInsightBooks;
-    const visibleData = selectedBooks.size
+    const selectedWords = selectedInsightWords;
+    const sourceItems = Array.isArray(data?.items) ? data.items : [];
+    const matchesSelectedInsightFilters = (item) =>
+      (!selectedBooks.size || selectedBooks.has(Number(item?.book))) &&
+      matchesSelectedInsightWords(item?.verse_text);
+    const filteredItems = sourceItems.filter(matchesSelectedInsightFilters);
+    const visibleData = selectedBooks.size || selectedWords.size
       ? {
         ...data,
-        items: (Array.isArray(data?.items) ? data.items : [])
-          .filter((item) => selectedBooks.has(Number(item?.book))),
+        items: filteredItems,
+        preserved_blocks: Array.isArray(data?.preserved_blocks)
+          ? data.preserved_blocks.map((block) => block.type === 'reference'
+            ? {
+              ...block,
+              items: (Array.isArray(block.items) ? block.items : [])
+                .filter(matchesSelectedInsightFilters)
+            }
+            : block)
+          : data?.preserved_blocks,
         reading_items: (Array.isArray(data?.reading_items) ? data.reading_items : [])
-          .filter((item) => selectedBooks.has(Number(item?.book))),
+          .filter((item) =>
+            (!selectedBooks.size || selectedBooks.has(Number(item?.book))) &&
+            matchesSelectedWordsInReadingItem(item)
+          )
+          .map(filterReadingItemBySelectedWords),
         stats: {
           ...data?.stats,
-          matched_verses: (Array.isArray(data?.insights?.matched_books) ? data.insights.matched_books : [])
-            .filter((entry) => selectedBooks.has(Number(entry.book)))
-            .reduce((total, entry) => total + Number(entry.count || 0), 0)
+          matched_verses: selectedWords.size
+            ? filteredItems.length
+            : (Array.isArray(data?.insights?.matched_books) ? data.insights.matched_books : [])
+              .filter((entry) => selectedBooks.has(Number(entry.book)))
+              .reduce((total, entry) => total + Number(entry.count || 0), 0)
         }
       }
       : data;
@@ -1447,7 +1607,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const resultCount = document.createElement('p');
       const totalResults = visibleData.stats.matched_verses;
       resultCount.className = 'result-count';
-      resultCount.textContent = selectedBooks.size
+      resultCount.textContent = selectedWords.size
+        ? `${totalResults} result${totalResults === 1 ? '' : 's'} shown containing ${Array.from(selectedWords).join(' and ')}.`
+        : selectedBooks.size
         ? `${totalResults} result${totalResults === 1 ? '' : 's'} found in selected books.`
         : `${totalResults} result${totalResults === 1 ? '' : 's'} found.`;
       results.appendChild(resultCount);
@@ -1900,6 +2062,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     selectedInsightBooks.clear();
+    selectedInsightWords.clear();
     window.__LAST_SEARCH_QUERY__ = query;
     updateBrowserTabTitle(query, intent);
     const options = getSearchOptions();
