@@ -9,9 +9,11 @@ import uvicorn
 
 def main() -> None:
     if getattr(sys, "frozen", False):
-        base_dir = Path(sys.executable).resolve().parent
+        executable_dir = Path(sys.executable).resolve().parent
+        app_files_dir = executable_dir / "app_files"
+        base_dir = app_files_dir if (app_files_dir / "main.py").is_file() else executable_dir
     else:
-        base_dir = Path(__file__).resolve().parent
+        base_dir = Path(__file__).resolve().parents[1]
 
     os.chdir(str(base_dir))
     if str(base_dir) not in sys.path:

@@ -6,9 +6,10 @@ This project is a FastAPI-based Bible search and reading app with a browser UI a
 
 - `main.py` — FastAPI server and Bible search logic
 - `kjv.sqlite` — Bible database
+- `icon.ico` and `icon.png` — browser/Windows and Android app icons
 - `static/` — JavaScript and CSS frontend assets
-- `templates/` — HTML pages
-- `packaging/` — packaging and distribution scripts
+- `templates/` — HTML pages, including the in-app help page
+- `packaging/` — Windows and Android packaging scripts
 
 ## Run locally
 
@@ -24,6 +25,29 @@ Then open:
 ```text
 http://127.0.0.1:8000/
 ```
+
+## Help
+
+Open **Help** from the app's top bar, or visit `http://127.0.0.1:8000/help`. The help page covers text and reference search, multi-reference note preservation, reading mode, display options, and exports.
+
+## Server deployment
+
+The deployment scripts copy the app entry point and database, the HTML templates and static assets, the README and dependency list, both icon files, the packaging scripts, and the deployment scripts:
+
+- Windows: run `deploy_bibleapp.bat` to deploy to the configured shared-folder destination.
+- Linux: run `deploy_bibleapp.sh` to deploy to `/var/www/bibleapp` and restart the `bibleapp` systemd service.
+
+The browser favicon is served from the root-level `icon.ico`. Keep it alongside `main.py`; `icon.png` is used by the Android package.
+
+### Server deployment ZIP
+
+Create a ZIP containing the server app, database, templates, static assets, icons, packaging files, and Linux deployment script:
+
+```powershell
+packaging\build_server_zip.bat
+```
+
+The archive is written to `dist\server-deployment\MarkdownBible-Server-Deployment.zip`. Extract it on the server, enter the included project folder, and run `sudo bash deploy_bibleapp.sh`. The script deploys to `/var/www/bibleapp` and restarts the existing `bibleapp` systemd service. Use `--output <path>` to choose a different ZIP location.
 
 ## Windows portable package
 
@@ -51,7 +75,8 @@ dist\windows-portable\
 The folder contains:
 
 - `BibleStudyApp.exe`
-- `app_files\` with the bundled server, static files, templates, and SQLite database
+- `app_files\` with the bundled server, static files, templates, SQLite database, and icons
+- `README.md` and `requirements.txt`
 - `run_app.bat` to launch the packaged app
 
 ## Android APK package
@@ -78,6 +103,8 @@ This produces an APK under:
 ```text
 dist\android-apk\
 ```
+
+The Android package uses the root-level `icon.png` for its app icon and presplash image.
 
 ## Notes
 

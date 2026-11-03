@@ -40,8 +40,14 @@ copy_dir() {
 
 copy_file "$SCRIPT_DIR/main.py" "$DEST_DIR/main.py"
 copy_file "$SCRIPT_DIR/kjv.sqlite" "$DEST_DIR/kjv.sqlite"
+copy_file "$SCRIPT_DIR/README.md" "$DEST_DIR/README.md"
+copy_file "$SCRIPT_DIR/requirements.txt" "$DEST_DIR/requirements.txt"
+copy_file "$SCRIPT_DIR/icon.ico" "$DEST_DIR/icon.ico"
+copy_file "$SCRIPT_DIR/icon.png" "$DEST_DIR/icon.png"
 copy_dir "$SCRIPT_DIR/templates" "$DEST_DIR/templates"
 copy_dir "$SCRIPT_DIR/static" "$DEST_DIR/static"
+copy_dir "$SCRIPT_DIR/packaging" "$DEST_DIR/packaging"
+copy_file "$SCRIPT_DIR/deploy_bibleapp.sh" "$DEST_DIR/deploy_bibleapp.sh"
 
 echo "Stopping bibleapp service..."
 sudo systemctl stop bibleapp

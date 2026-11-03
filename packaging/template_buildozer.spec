@@ -15,7 +15,7 @@ source.dir = ..
 source.include_exts = py,png,jpg,kv,atlas,sqlite,html,js,css
 
 # (list) Source files to include (let empty to include all the listed ones)
-source.include_patterns = static/*,templates/*,main.py,kjv.sqlite
+source.include_patterns = static/*,templates/*,main.py,kjv.sqlite,icon.png
 
 # (list) List of exclusions using pattern expressions
 source.exclude_patterns = .git/*,*.pyc,*/__pycache__/*
@@ -27,10 +27,10 @@ version = 1.0.0
 requirements = python3,fastapi,uvicorn,jinja2,python-multipart,python-docx,openpyxl,pydantic
 
 # (str) Presplash of the app
-presplash.filename = %(source.dir)s/static/icon.png
+presplash.filename = %(source.dir)s/icon.png
 
 # (str) Icon of the app
-icon.filename = %(source.dir)s/static/icon.png
+icon.filename = %(source.dir)s/icon.png
 
 # (str) Supported orientation
 orientation = portrait

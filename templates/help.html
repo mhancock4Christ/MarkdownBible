@@ -5,14 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Bible Study Help</title>
     <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   </head>
   <body>
     <main class="container help-page">
       <h1>Help</h1>
-      <p>Search by a word or phrase first. If no text matches are found, the app will automatically try a reference search as a fallback.</p>
-      <p>When performing a search, you can choose different search modes such as "All Words", "Any Word", or "Phrase" to refine your search results. Additionally, the Context window setting allows you to specify how many surrounding verses should be displayed along with the search results. These are combined when ranges overlap, when grouped in passage mode, making for better reading and analysis of contextual passage meaning. </p>
-      <p>Entering a full chapter reference will display all verses within that chapter. The chapter will load in "reading mode", where scrolling up or down load the previous or next chapter automatically. The "New Line Verse" checkbox changes whether the passage displays in paragraph view, or each verse starting on a new line. </p>
-      <p>To look up references within pasted notes, select "Multi-reference". It enables "Preserve notes", which keeps your notes in their original order around the looked-up passages, including text after the final reference. Basic Markdown emphasis, inline code, and web links are shown in the notes, and Copy retains the original Markdown. Use "Reference" for a direct reference lookup without preserving surrounding notes.</p>
+
+      <h2>Search</h2>
+      <p>Enter a word or phrase and choose <strong>Search</strong>. If the text search finds no matches, the app tries the input as a Bible reference.</p>
+      <ul>
+        <li><strong>Search type:</strong> <em>Phrase</em> matches the phrase, <em>All Words</em> requires every word, and <em>Any Word</em> matches at least one word.</li>
+        <li><strong>Book group:</strong> limit results to a group such as Law, Prophets, Psalms, Gospels, or Epistles.</li>
+        <li><strong>Context window:</strong> include the selected number of surrounding verses. Overlapping ranges are combined.</li>
+        <li><strong>Case sensitive:</strong> match the capitalization in your search.</li>
+      </ul>
+      <p>Choose <strong>Reference</strong> to look up a reference directly. Enter a chapter (for example, <em>John 3</em>) to open it in reading mode; scroll up or down to load the previous or next chapter.</p>
+      <p>Choose <strong>Multi-reference</strong> to find references in pasted notes. This turns on <strong>Preserve notes</strong>, keeping the notes in their original order around the passages, including text after the last reference. Basic Markdown emphasis, inline code, and web links are displayed in notes; Copy retains the original Markdown.</p>
+
+      <h2>Display and navigation</h2>
+      <ul>
+        <li><strong>Group:</strong> show results by individual verse or combine them into passages.</li>
+        <li><strong>Reference:</strong> choose Wikilink or Standard formatting and put the reference first or last.</li>
+        <li><strong>Red Letter, paragraphs, and Highlight Search:</strong> adjust verse styling and search-term highlighting.</li>
+        <li><strong>Links:</strong> show or hide links on Bible references.</li>
+        <li><strong>Newline Verse:</strong> in passage view, start each verse on a new line.</li>
+      </ul>
+      <p>Use the theme button to switch between light and dark mode. Display options are available at the bottom of the search page.</p>
+
+      <h2>Copy and export</h2>
+      <p>Use <strong>Copy</strong> to copy the results. Choose a format and select <strong>Download</strong> to export as XLSX, Markdown, DOCX, TXT, or CSV.</p>
+
       <p><a href="/">Back to search</a></p>
     </main>
   </body>
