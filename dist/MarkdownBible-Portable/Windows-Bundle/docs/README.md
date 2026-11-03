@@ -37,6 +37,10 @@ Open **Help** from the app's top bar, or visit `http://127.0.0.1:8000/help`. The
 
 Open **Learn the books** from the top bar, or visit `http://127.0.0.1:8000/learn-books`. Select all 66 books in canonical order. The game includes a timer, category colors, audio feedback, and optional player names. Recent results are stored in browser local storage and can be cleared from the game page. Completed scores are also recorded in `app/data/book_order_leaderboard.json` beside the app database; the server creates the file when the first score is submitted, so that folder must be writable. The public board shows the 10 fastest times overall and 20 most recent finishes. No account is needed. Display names are checked for common profanity, adult terms, and markup. Scores and display names are public, and completion times are submitted by the browser, so the board is intended for casual competition rather than tamper-proof rankings.
 
+## Dictionary
+
+Open **Dictionary** from the app's top bar, or visit `http://127.0.0.1:8000/dictionary`. Search for a Webster's 1828 headword. Use `*` to match zero or more characters and `?` to match exactly one character. Each headword appears once with its definitions grouped together; additional matching words load as needed. The page reads `app/data/dictionary.db`, from [kayson-argyle/websters_1828](https://github.com/kayson-argyle/websters_1828).
+
 ## Server deployment
 
 The deployment scripts copy the app, configuration, documentation, packaging support files, and deployment scripts as subdirectories:
@@ -54,7 +58,7 @@ Create a ZIP containing the server app, database, templates, static assets, icon
 .local-scripts\build_server_zip.bat
 ```
 
-The archive is written to `dist\MarkdownBible-Server\MarkdownBible-Server-Deployment.zip` and contains a `MarkdownBible-Server\` project folder with only subdirectories: `app\`, `config\`, `docs\`, `packaging\`, and `scripts\`. The app dependencies are included at `config\requirements.txt`. Extract it on the server, enter that folder, and run `sudo bash scripts/deploy_bibleapp.sh`. The deployed systemd service should use a Python environment with `config/requirements.txt` installed and launch `app.main:app` from `/var/www/bibleapp`. Use `--output <path>` to choose a different ZIP location.
+The archive is written to `dist\MarkdownBible-Server\MarkdownBible-Server-Deployment.zip` and contains a `MarkdownBible-Server\` project folder with the app, configuration, docs, packaging files, and the Linux deploy script at both the project root and `scripts\deploy_bibleapp.sh`. Extract it on the server, enter that folder, and run `sudo bash deploy_bibleapp.sh` (or `sudo bash scripts/deploy_bibleapp.sh`). The script requires `rsync`; it synchronizes the deployed app and support folders, removes obsolete flat-layout files and stale files from those folders, and verifies the deployed help page before restarting the service. It preserves `app/data/book_order_leaderboard.json` and its temporary files across deployments. The deployed systemd service should use a Python environment with `config/requirements.txt` installed and launch `app.main:app` from `/var/www/bibleapp`. Use `--output <path>` to choose a different ZIP location.
 
 ## Windows portable package
 
@@ -79,16 +83,19 @@ This outputs a portable build under:
 dist\MarkdownBible-Portable\Windows-Bundle\
 ```
 
+The build script also creates `dist\MarkdownBible-Portable\Windows-Bundle.zip` for distribution.
+The ZIP contains the `Windows-Bundle\` folder and its executable, app files, documentation, configuration, and launcher.
+
 The folder contains:
 
 - `BibleStudyApp.exe`
-- `app_files\app\` with the server, static files, templates, SQLite database, and icons
+- `app_files\app\` with the server, static files, templates, SQLite databases, and icons
 - `docs\README.md` and `config\requirements.txt`
 - `scripts\run_app.bat` to launch the packaged app
 
 ### Quick EXE build and ZIP
 
-Run `.local-scripts\compile_to_exe.bat` to build the portable executable. The script stops any running copy of this app before compiling, then writes `dist\MarkdownBible-Portable\MarkdownBible-Portable.zip`. The ZIP contains a `MarkdownBible-Portable\` project folder with `app\Bible_Study.exe`, `app\data\kjv.sqlite`, and `docs\README.md`; the same folder is available beside the ZIP.
+Run `.local-scripts\compile_to_exe.bat` to build the portable executable. The script stops any running copy of this app before compiling, then writes `dist\MarkdownBible-Portable\MarkdownBible-Portable.zip`. The ZIP contains a `MarkdownBible-Portable\` project folder with `app\Bible_Study.exe`, `app\data\kjv.sqlite`, `app\data\dictionary.db`, and `docs\README.md`; the same folder is available beside the ZIP.
 
 ## Notes
 

@@ -1,5 +1,6 @@
 import csv
 import io
+import json
 import os
 import re
 import sqlite3
@@ -13,8 +14,10 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from .leaderboard_store import load_leaderboard, record_completion, validate_completion
+from .dictionary_store import lookup_dictionary, search_dictionary
 from .runtime_paths import (
     DATABASE_PATH,
+    DICTIONARY_PATH,
     ICON_PATH,
     LEADERBOARD_PATH as DEFAULT_LEADERBOARD_PATH,
     STATIC_DIR,
@@ -1547,7 +1550,7 @@ def build_markdown_web_link(reference: str, base_url: str | None = None) -> str:
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    initial_query = request.query_params.get("q", "")
+    initial_query = request.query_params.get("q", "Jn 3.16")
     return templates.TemplateResponse(
         request=request,
         name="index.html",
@@ -1556,6 +1559,54 @@ async def home(request: Request):
             "initial_query": initial_query,
         }
     )
+
+
+@app.get("/dictionary", response_class=HTMLResponse)
+async def dictionary_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="dictionary.html",
+        context={"initial_query": request.query_params.get("q", "")},
+    )
+
+
+@app.get("/api/dictionary/search")
+async def dictionary_search(q: str, limit: int = 50, offset: int = 0):
+    try:
+        return search_dictionary(DICTIONARY_PATH, q, limit, offset)
+    except json.JSONDecodeError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="The dictionary database contains invalid data.",
+        ) from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except (FileNotFoundError, OSError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="The dictionary database could not be read.",
+        ) from error
+
+
+@app.get("/api/dictionary/lookup")
+async def dictionary_lookup(word: str):
+    try:
+        result = lookup_dictionary(DICTIONARY_PATH, word)
+        if result is None:
+            raise HTTPException(status_code=404, detail="No dictionary entry was found.")
+        return result
+    except json.JSONDecodeError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="The dictionary database contains invalid data.",
+        ) from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except (FileNotFoundError, OSError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="The dictionary database could not be read.",
+        ) from error
 
 
 @app.get("/api/config")
@@ -1600,6 +1651,57 @@ async def submit_book_order_result(payload: dict):
         return record_completion(LEADERBOARD_PATH, entry)
     except (OSError, ValueError) as error:
         raise HTTPException(status_code=500, detail="Your result could not be saved to the competition leaderboard.") from error
+
+
+def build_search_insights(rows, query, matched_rows=None):
+    stop_words = {
+        "about", "after", "again", "against", "also", "and", "are", "because",
+        "been", "before", "being", "but", "for", "from", "had", "has", "have",
+        "her", "here", "him", "his", "how", "into", "its", "may", "more",
+        "not", "our", "out", "shall", "she", "some", "than", "that", "the",
+        "their", "them", "then", "there", "these", "they", "this", "those",
+        "through", "thy", "unto", "was", "were", "what", "when", "where",
+        "which", "who", "will", "with", "you", "your", "thee", "thou", "ye",
+        "hath", "doth", "saith", "thine"
+    }
+    query_words = {word.lower() for word in re.findall(r"[A-Za-z]+", query)}
+    book_counts = {}
+    matched_book_counts = {}
+    word_counts = {}
+    rows = rows or []
+    matched_rows = matched_rows if matched_rows is not None else rows
+
+    for row in rows:
+        book_num = int(row["book"])
+        book_counts[book_num] = book_counts.get(book_num, 0) + 1
+
+        for word in re.findall(r"[A-Za-z]+", row["cleaned_text"]):
+            key = word.lower()
+            if len(key) < 3 or key in stop_words or key in query_words:
+                continue
+            if key not in word_counts:
+                word_counts[key] = {"word": word, "count": 0}
+            word_counts[key]["count"] += 1
+
+    for row in matched_rows:
+        book_num = int(row["book"])
+        matched_book_counts[book_num] = matched_book_counts.get(book_num, 0) + 1
+
+    return {
+        "verse_count": len(rows),
+        "matched_books": [
+            {"book": book_num, "count": count}
+            for book_num, count in sorted(matched_book_counts.items())
+        ],
+        "books": [
+            {"book": book_num, "name": get_book_name(book_num), "count": count}
+            for book_num, count in sorted(book_counts.items())
+        ],
+        "words": sorted(
+            word_counts.values(),
+            key=lambda item: (-item["count"], item["word"].lower())
+        )[:36]
+    }
 
 
 def build_wildcard_summary(rows, regexes, search_mode):
@@ -1653,22 +1755,33 @@ async def search(payload: SearchRequest):
         if not query:
             raise HTTPException(status_code=400, detail="Query is required.")
 
+        inferred = {"references": []}
+
         if payload.intent == "reference":
             inferred = resolve_reference_intent(query)
             mode = inferred["mode"]
             recommended_view = inferred["recommended_view"]
         else:
-            mode = "text"
-            recommended_view = "results"
-            inferred = {"references": []}
+            inferred_candidate = resolve_reference_intent(query)
+            auto_route_to_reference = bool(inferred_candidate.get("references"))
+
+            if auto_route_to_reference:
+                inferred = inferred_candidate
+                mode = inferred["mode"]
+                recommended_view = inferred["recommended_view"]
+            else:
+                mode = "text"
+                recommended_view = "results"
 
         rows = []
+        items = []
         extracted_refs = []
         preserved_blocks = []
         preservable_reference_count = 0
         regexes = []
         total_matches = 0
         matched_verses = 0
+        matched_rows = []
         wildcard_summary = []
 
         if mode == "text":
@@ -1813,6 +1926,8 @@ async def search(payload: SearchRequest):
         else:
             raise HTTPException(status_code=400, detail="Invalid inferred mode.")
 
+        if mode != "text":
+            matched_verses = len(rows)
         if not (mode == "extract" and payload.preserve_notes and payload.lookup_extracted and extracted_refs):
             items = build_display_items(
                 rows,
@@ -1842,6 +1957,11 @@ async def search(payload: SearchRequest):
             "extracted_refs": extracted_refs,
             "preservable_reference_count": preservable_reference_count,
             "preserved_blocks": preserved_blocks,
+            "insights": build_search_insights(
+                rows,
+                query,
+                matched_rows if mode == "text" else rows
+            ),
             "wildcard_summary": wildcard_summary,
             "stats": {
                 "total_matches": total_matches,

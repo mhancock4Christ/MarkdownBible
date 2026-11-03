@@ -1,5 +1,6 @@
 import csv
 import io
+import json
 import os
 import re
 import sqlite3
@@ -13,8 +14,10 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from .leaderboard_store import load_leaderboard, record_completion, validate_completion
+from .dictionary_store import lookup_dictionary, search_dictionary
 from .runtime_paths import (
     DATABASE_PATH,
+    DICTIONARY_PATH,
     ICON_PATH,
     LEADERBOARD_PATH as DEFAULT_LEADERBOARD_PATH,
     STATIC_DIR,
@@ -1547,7 +1550,7 @@ def build_markdown_web_link(reference: str, base_url: str | None = None) -> str:
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    initial_query = request.query_params.get("q", "")
+    initial_query = request.query_params.get("q", "Jn 3.16")
     return templates.TemplateResponse(
         request=request,
         name="index.html",
@@ -1556,6 +1559,54 @@ async def home(request: Request):
             "initial_query": initial_query,
         }
     )
+
+
+@app.get("/dictionary", response_class=HTMLResponse)
+async def dictionary_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="dictionary.html",
+        context={"initial_query": request.query_params.get("q", "")},
+    )
+
+
+@app.get("/api/dictionary/search")
+async def dictionary_search(q: str, limit: int = 50, offset: int = 0):
+    try:
+        return search_dictionary(DICTIONARY_PATH, q, limit, offset)
+    except json.JSONDecodeError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="The dictionary database contains invalid data.",
+        ) from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except (FileNotFoundError, OSError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="The dictionary database could not be read.",
+        ) from error
+
+
+@app.get("/api/dictionary/lookup")
+async def dictionary_lookup(word: str):
+    try:
+        result = lookup_dictionary(DICTIONARY_PATH, word)
+        if result is None:
+            raise HTTPException(status_code=404, detail="No dictionary entry was found.")
+        return result
+    except json.JSONDecodeError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="The dictionary database contains invalid data.",
+        ) from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except (FileNotFoundError, OSError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="The dictionary database could not be read.",
+        ) from error
 
 
 @app.get("/api/config")
@@ -1602,7 +1653,7 @@ async def submit_book_order_result(payload: dict):
         raise HTTPException(status_code=500, detail="Your result could not be saved to the competition leaderboard.") from error
 
 
-def build_search_insights(rows, query, matched_rows):
+def build_search_insights(rows, query, matched_rows=None):
     stop_words = {
         "about", "after", "again", "against", "also", "and", "are", "because",
         "been", "before", "being", "but", "for", "from", "had", "has", "have",
@@ -1617,6 +1668,9 @@ def build_search_insights(rows, query, matched_rows):
     book_counts = {}
     matched_book_counts = {}
     word_counts = {}
+
+    rows = rows or []
+    matched_rows = matched_rows if matched_rows is not None else rows
 
     for row in rows:
         book_num = int(row["book"])
@@ -1694,7 +1748,9 @@ def build_wildcard_summary(rows, regexes, search_mode):
 
 @app.post("/api/search")
 async def search(payload: SearchRequest):
+    conn = None
     try:
+        print("SEARCH HANDLER PATCHED VERSION")
         conn = get_conn()
         cur = conn.cursor()
 
@@ -1712,6 +1768,7 @@ async def search(payload: SearchRequest):
             inferred = {"references": []}
 
         rows = []
+        items = []
         extracted_refs = []
         preserved_blocks = []
         preservable_reference_count = 0
@@ -1742,8 +1799,7 @@ async def search(payload: SearchRequest):
             normalized_rows = [normalize_row(row, payload.suppress_paragraph) for row in raw_rows]
             matched_rows, total_matches = filter_rows_python(normalized_rows, regexes, payload.search_type)
             matched_verses = len(matched_rows)
-            if mode == "text":
-                wildcard_summary = build_wildcard_summary(matched_rows, regexes, payload.search_type)
+            wildcard_summary = build_wildcard_summary(matched_rows, regexes, payload.search_type)
 
             if payload.context_window > 0:
                 base_context_rows = [{"id": r["id"]} for r in matched_rows]
@@ -1863,6 +1919,9 @@ async def search(payload: SearchRequest):
         else:
             raise HTTPException(status_code=400, detail="Invalid inferred mode.")
 
+        if mode != "text":
+            matched_verses = len(rows)
+
         if not (mode == "extract" and payload.preserve_notes and payload.lookup_extracted and extracted_refs):
             items = build_display_items(
                 rows,
@@ -1881,8 +1940,6 @@ async def search(payload: SearchRequest):
             cur
         )
 
-        conn.close()
-
         return JSONResponse({
             "query_mode": mode,
             "recommended_view": recommended_view,
@@ -1892,7 +1949,12 @@ async def search(payload: SearchRequest):
             "extracted_refs": extracted_refs,
             "preservable_reference_count": preservable_reference_count,
             "preserved_blocks": preserved_blocks,
-            "insights": build_search_insights(rows, query, matched_rows),
+            "insights": build_search_insights(rows, query, matched_rows) if mode == "text" else {
+                "verse_count": len(rows),
+                "matched_books": [],
+                "books": [],
+                "words": []
+            },
             "wildcard_summary": wildcard_summary,
             "stats": {
                 "total_matches": total_matches,
@@ -1906,6 +1968,9 @@ async def search(payload: SearchRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn is not None:
+            conn.close()
 
 
 def ensure_export_items(items: List[dict] | None):
