@@ -54,7 +54,7 @@ Create a ZIP containing the server app, database, templates, static assets, icon
 .local-scripts\build_server_zip.bat
 ```
 
-The archive is written to `dist\MarkdownBible-Server\MarkdownBible-Server-Deployment.zip` and contains a `MarkdownBible-Server\` project folder with only subdirectories: `app\`, `config\`, `docs\`, `packaging\`, and `scripts\`. The app dependencies are included at `config\requirements.txt`. Extract it on the server, enter that folder, and run `sudo bash scripts/deploy_bibleapp.sh`. The deployed systemd service should use a Python environment with `config/requirements.txt` installed and launch `app.main:app` from `/var/www/bibleapp`. Use `--output <path>` to choose a different ZIP location.
+The archive is written to `dist\MarkdownBible-Server\MarkdownBible-Server-Deployment.zip` and contains a `MarkdownBible-Server\` project folder with the app, configuration, docs, packaging files, and the Linux deploy script at both the project root and `scripts\deploy_bibleapp.sh`. Extract it on the server, enter that folder, and run `sudo bash deploy_bibleapp.sh` (or `sudo bash scripts/deploy_bibleapp.sh`). The script requires `rsync`; it synchronizes the deployed app and support folders, removes obsolete flat-layout files and stale files from those folders, and verifies the deployed help page before restarting the service. It preserves `app/data/book_order_leaderboard.json` and its temporary files across deployments. The deployed systemd service should use a Python environment with `config/requirements.txt` installed and launch `app.main:app` from `/var/www/bibleapp`. Use `--output <path>` to choose a different ZIP location.
 
 ## Windows portable package
 
@@ -78,6 +78,9 @@ This outputs a portable build under:
 ```text
 dist\MarkdownBible-Portable\Windows-Bundle\
 ```
+
+The build script also creates `dist\MarkdownBible-Portable\Windows-Bundle.zip` for distribution.
+The ZIP contains the `Windows-Bundle\` folder and its executable, app files, documentation, configuration, and launcher.
 
 The folder contains:
 

@@ -1163,16 +1163,10 @@ body.dark .word-cloud-link[data-tone="4"] {
   color: #1f2937;
   box-shadow: 0 12px 32px rgba(31, 41, 55, 0.24);
   text-align: center;
-  transition: opacity 900ms ease-in, transform 900ms ease-in;
 }
 
 .book-celebration[hidden] {
   display: none;
-}
-
-.book-celebration--leaving {
-  opacity: 0;
-  transform: translate(-50%, -120vh);
 }
 
 .book-celebration-copy {
@@ -1222,7 +1216,7 @@ body.dark .word-cloud-link[data-tone="4"] {
     radial-gradient(circle, #ef4444 2px, transparent 3px) 15% 15% / 5px 5px;
   background-repeat: no-repeat;
   opacity: 0;
-  animation: book-order-firework 1.8s ease-out infinite;
+  animation: book-order-firework 1.8s ease-out 3;
 }
 
 .celebration-fireworks span:nth-child(1) {
@@ -1332,7 +1326,6 @@ body.dark .word-cloud-link[data-tone="4"] {
 
 .learn-player input:focus-visible,
 .book-cloud-item:focus-visible,
-.learn-clear-results:focus-visible,
 .learn-restart:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
@@ -1364,8 +1357,7 @@ body.dark .word-cloud-link[data-tone="4"] {
   font-variant-numeric: tabular-nums;
 }
 
-.learn-restart,
-.learn-clear-results {
+.learn-restart {
   background: var(--secondary);
   color: var(--text);
 }
@@ -1654,6 +1646,39 @@ body.dark .legend-swatch.category-epistles { background: #482b3b; color: #f2b8d5
   font-variant-numeric: tabular-nums;
 }
 
+.missed-books-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.missed-book-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.missed-book-neighbor,
+.missed-book-name {
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
+.missed-book-neighbor {
+  background: var(--secondary);
+  color: var(--muted);
+}
+
+.missed-book-name {
+  text-align: center;
+}
+
 @keyframes book-order-wrong {
   25% { transform: translateX(-4px); }
   75% { transform: translateX(4px); }
@@ -1662,6 +1687,18 @@ body.dark .legend-swatch.category-epistles { background: #482b3b; color: #f2b8d5
 @media (max-width: 760px) {
   .learn-board {
     grid-template-columns: 1fr;
+  }
+
+  @media (max-width: 520px) {
+    .missed-book-item {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 5px;
+    }
+
+    .missed-book-neighbor,
+    .missed-book-name {
+      padding: 7px 9px;
+    }
   }
 
   .ordered-books {
@@ -1703,10 +1740,6 @@ body.dark .legend-swatch.category-epistles { background: #482b3b; color: #f2b8d5
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .book-celebration {
-    transition: none;
-  }
-
   .celebration-fireworks span {
     animation: none;
     opacity: 0.7;

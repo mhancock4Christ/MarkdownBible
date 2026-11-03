@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Learn the Books of the Bible</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20261102-19" />
+    <link rel="stylesheet" href="/static/styles.css?v=20261102-21" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   </head>
   <body>
@@ -52,7 +52,7 @@
         <section class="learn-controls" aria-label="Game controls">
           <label class="learn-player">
             <span>Your name <span class="learn-optional">(optional)</span></span>
-            <input id="playerName" type="text" maxlength="32" autocomplete="name" placeholder="Enter a name for your results" />
+            <input id="playerName" type="text" maxlength="32" autocomplete="name" placeholder="Enter a name for the leaderboard" />
           </label>
           <div class="learn-stats" aria-label="Game status">
             <div class="learn-stat">
@@ -97,6 +97,16 @@
           </aside>
         </section>
 
+        <section id="missedBooksReview" class="learn-results-panel missed-books-review" aria-labelledby="missedBooksHeading" aria-live="polite" hidden>
+          <div class="learn-section-heading">
+            <div>
+              <h2 id="missedBooksHeading">Books to review</h2>
+              <p id="missedBooksMessage">These are the books you picked out of order, shown with their neighbors.</p>
+            </div>
+          </div>
+          <ol id="missedBooksList" class="missed-books-list"></ol>
+        </section>
+
         <section class="learn-legend-panel" aria-labelledby="legendHeading">
           <h2 id="legendHeading">Book categories</h2>
           <ul class="book-legend">
@@ -128,21 +138,10 @@
             </section>
           </div>
         </section>
-
-        <section class="learn-results-panel" aria-labelledby="savedResultsHeading">
-          <div class="learn-section-heading">
-            <div>
-              <h2 id="savedResultsHeading">Your saved results</h2>
-              <p>Recent completed games saved in this browser only.</p>
-            </div>
-            <button type="button" id="clearResults" class="secondary learn-clear-results">Clear results</button>
-          </div>
-          <div id="savedResults"></div>
-        </section>
       </main>
     </div>
 
-    <script src="/static/book_order.js?v=20261102-7"></script>
+    <script src="/static/book_order.js?v=20261102-9"></script>
     <script>
       const themeToggle = document.getElementById('themeToggle');
       const isDark = document.body.classList.contains('dark');

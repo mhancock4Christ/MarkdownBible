@@ -63,6 +63,7 @@ def main() -> None:
         for source in files:
             relative_path = source.relative_to(root_dir)
             if relative_path == Path(".local-scripts/deploy_bibleapp.sh"):
+                archive.write(source, Path(archive_root) / "deploy_bibleapp.sh")
                 relative_path = Path("scripts/deploy_bibleapp.sh")
             archive.write(source, Path(archive_root) / relative_path)
 

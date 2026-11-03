@@ -67,7 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
     { name: 'Jude', category: 'epistles' },
     { name: 'Revelation', category: 'prophets' }
   ];
-  const storageKey = 'bibleapp-book-order-results';
   const cloud = document.getElementById('bookCloud');
   const orderedBooks = document.getElementById('orderedBooks');
   const status = document.getElementById('gameStatus');
@@ -77,15 +76,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const mistakesDisplay = document.getElementById('gameMistakes');
   const cloudCount = document.getElementById('cloudCount');
   const playerName = document.getElementById('playerName');
+  const missedBooksReview = document.getElementById('missedBooksReview');
+  const missedBooksMessage = document.getElementById('missedBooksMessage');
+  const missedBooksList = document.getElementById('missedBooksList');
   const celebration = document.getElementById('bookCelebration');
   const celebrationMessage = document.getElementById('celebrationMessage');
   const celebrationVerse = document.getElementById('celebrationVerse');
   const celebrationVerseReference = document.getElementById('celebrationVerseReference');
   const fastestResults = document.getElementById('fastestResults');
   const recentResults = document.getElementById('recentResults');
-  const savedResults = document.getElementById('savedResults');
   const restartButton = document.getElementById('restartGame');
-  const clearResultsButton = document.getElementById('clearResults');
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let nextBook = 0;
   let mistakes = 0;
@@ -93,10 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let timerInterval = null;
   let audioContext = null;
   let finished = false;
-  let results = [];
+  let missedBookIndexes = new Set();
   let cloudOrder = [];
-  let celebrationTimeout = null;
-  let celebrationHideTimeout = null;
   const celebrationVerses = [
     { text: 'The LORD is my shepherd; I shall not want.', reference: 'Psalm 23:1 (KJV)' },
     { text: 'Thy word is a lamp unto my feet, and a light unto my path.', reference: 'Psalm 119:105 (KJV)' },
@@ -152,45 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
     timerInterval = window.setInterval(() => {
       timer.textContent = formatTime(Date.now() - startedAt);
     }, 250);
-  }
-
-  function saveResults() {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(results));
-      showAlert('');
-    } catch (error) {
-      showAlert(`Your game is complete, but results could not be saved in this browser: ${error.message}`);
-    }
-  }
-
-  function renderResults() {
-    savedResults.replaceChildren();
-    if (!results.length) {
-      const empty = document.createElement('p');
-      empty.className = 'learn-empty-results';
-      empty.textContent = 'Finish a game to see your results here.';
-      savedResults.append(empty);
-      return;
-    }
-
-    const table = document.createElement('table');
-    table.className = 'learn-results-table';
-    const head = table.createTHead().insertRow();
-    ['Name', 'Time', 'Mistakes', 'Date'].forEach((label) => {
-      const cell = document.createElement('th');
-      cell.scope = 'col';
-      cell.textContent = label;
-      head.append(cell);
-    });
-    const body = table.createTBody();
-    results.forEach((result) => {
-      const row = body.insertRow();
-      [result.name || 'Guest', formatTime(result.elapsedMs), String(result.mistakes), new Date(result.completedAt).toLocaleDateString()].forEach((value) => {
-        const cell = row.insertCell();
-        cell.textContent = value;
-      });
-    });
-    savedResults.append(table);
   }
 
   function renderCompetitionResults(container, entries, emptyMessage) {
@@ -311,6 +270,41 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCloud();
   }
 
+  function renderMissedBooksReview() {
+    missedBooksList.replaceChildren();
+    missedBooksReview.hidden = false;
+
+    const missedIndexes = [...missedBookIndexes].sort((a, b) => a - b);
+    if (!missedIndexes.length) {
+      missedBooksMessage.textContent = 'You got every book right on the first try!';
+      return;
+    }
+
+    missedBooksMessage.textContent = 'Each book you picked out of order is shown with the book before and after it.';
+    missedIndexes.forEach((index) => {
+      const item = document.createElement('li');
+      item.className = 'missed-book-item';
+
+      const before = document.createElement('span');
+      before.className = 'missed-book-neighbor';
+      before.textContent = index === 0 ? 'Start of the Bible' : books[index - 1].name;
+      before.setAttribute('aria-label', `Before: ${before.textContent}`);
+
+      const missed = document.createElement('strong');
+      missed.className = `missed-book-name category-${books[index].category}`;
+      missed.textContent = books[index].name;
+      missed.setAttribute('aria-label', `Picked out of order: ${books[index].name}`);
+
+      const after = document.createElement('span');
+      after.className = 'missed-book-neighbor';
+      after.textContent = index === books.length - 1 ? 'End of the Bible' : books[index + 1].name;
+      after.setAttribute('aria-label', `After: ${after.textContent}`);
+
+      item.append(before, missed, after);
+      missedBooksList.append(item);
+    });
+  }
+
   function completeGame() {
     finished = true;
     window.clearInterval(timerInterval);
@@ -322,11 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
       mistakes,
       completedAt: new Date().toISOString()
     };
-    results.unshift(result);
-    results = results.slice(0, 10);
-    saveResults();
-    renderResults();
-    submitCompetitionResult(result);
+    renderMissedBooksReview();
     const name = playerName.value.trim().slice(0, 32);
     celebrationMessage.textContent = name
       ? `${name}, you put all 66 books in order in ${formatTime(elapsedMs)}!`
@@ -334,16 +324,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const verse = celebrationVerses[Math.floor(Math.random() * celebrationVerses.length)];
     celebrationVerse.textContent = `"${verse.text}"`;
     celebrationVerseReference.textContent = verse.reference;
-    celebration.classList.remove('book-celebration--leaving');
     celebration.hidden = false;
-    celebrationTimeout = window.setTimeout(() => {
-      if (!finished) return;
-      celebration.classList.add('book-celebration--leaving');
-      celebrationHideTimeout = window.setTimeout(() => {
-        celebration.hidden = true;
-      }, 900);
-    }, 1800);
     status.textContent = `Wonderful! You put all 66 books in order in ${formatTime(elapsedMs)} with ${mistakes} ${mistakes === 1 ? 'mistake' : 'mistakes'}.`;
+    submitCompetitionResult(result);
     playTone(true);
   }
 
@@ -352,6 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startTimer();
     if (index !== nextBook) {
       mistakes += 1;
+      missedBookIndexes.add(index);
       mistakesDisplay.textContent = String(mistakes);
       button.classList.remove('book-cloud-wrong');
       if (!reducedMotion) void button.offsetWidth;
@@ -383,14 +367,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function resetGame() {
     window.clearInterval(timerInterval);
-    window.clearTimeout(celebrationTimeout);
-    window.clearTimeout(celebrationHideTimeout);
     nextBook = 0;
     mistakes = 0;
     startedAt = null;
     timerInterval = null;
     finished = false;
-    celebration.classList.remove('book-celebration--leaving');
+    missedBookIndexes = new Set();
+    missedBooksReview.hidden = true;
+    missedBooksMessage.textContent = '';
+    missedBooksList.replaceChildren();
     celebration.hidden = true;
     cloudOrder = books.map((_, index) => index);
     for (let index = cloudOrder.length - 1; index > 0; index -= 1) {
@@ -404,16 +389,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   restartButton.addEventListener('click', resetGame);
-  clearResultsButton.addEventListener('click', () => {
-    results = [];
-    try {
-      localStorage.removeItem(storageKey);
-    } catch (error) {
-      showAlert(`Saved results could not be cleared: ${error.message}`);
-      return;
-    }
-    renderResults();
-  });
   playerName.addEventListener('input', () => {
     try {
       localStorage.setItem('bibleapp-book-order-name', playerName.value.slice(0, 32));
@@ -427,7 +402,6 @@ document.addEventListener('DOMContentLoaded', () => {
     showAlert(`Your saved name could not be read from this browser: ${error.message}`);
   }
 
-  loadResults();
   renderCompetitionResults(fastestResults, [], 'Loading leaderboard…');
   renderCompetitionResults(recentResults, [], 'Loading leaderboard…');
   loadCompetitionLeaderboard();
