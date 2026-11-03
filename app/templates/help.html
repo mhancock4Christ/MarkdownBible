@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bible Study Help</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  </head>
+  <body>
+    <script>
+      document.body.classList.toggle('dark', localStorage.getItem('bibleapp-theme') === 'dark');
+    </script>
+    <div class="app-shell help-shell">
+      <header class="topbar">
+        <div class="app-brand">
+          <span class="app-icon-wrap">
+            <img class="app-icon" src="/favicon.ico" alt="" />
+          </span>
+          <h1>Bible Study</h1>
+        </div>
+        <div class="topbar-actions">
+          <a class="help-link" href="/learn-books">Learn the books</a>
+          <a class="help-link" href="/">Back to search</a>
+          <button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false">
+            Dark mode
+          </button>
+        </div>
+      </header>
+
+      <main class="container help-page">
+        <h1>Help</h1>
+
+        <h2>Learn the books</h2>
+        <p>Open <strong>Learn the books</strong> to practice putting all 66 Bible books in order. Select each book in sequence; correct picks move into your list and incorrect picks give a hint. The timer starts with your first pick, and completed results are saved in this browser. No account is needed for the public competition board, which shows the 10 fastest times overall and 20 most recent finishes. Display names are checked for common profanity, adult terms, and markup; omitted names appear as Guest. Books are color-coded by category; Acts is grouped with History and Revelation with Prophets.</p>
+
+        <h2>Search</h2>
+        <p>Enter a word or phrase and choose <strong>Search</strong>. If the text search finds no matches, the app tries the input as a Bible reference.</p>
+        <ul>
+          <li><strong>Search type:</strong> <em>Phrase</em> matches the phrase, <em>All Words</em> requires every word, and <em>Any Word</em> matches at least one word.</li>
+          <li><strong>Wildcards:</strong> use <code>*</code> to match zero or more letters within a word. For example, <code>love*</code> finds words beginning with “love,” <code>*love</code> finds words ending in “love,” and <code>*love*</code> finds words containing “love.” The wildcard applies only where you put it; it does not stand for spaces or whole phrases.</li>
+          <li><strong>Book group:</strong> limit results to a testament or book section. The lists below follow the app's 66-book Protestant Bible order:
+            <ul>
+              <li><strong>Old Testament:</strong> Genesis–Malachi (books 1–39).</li>
+              <li><strong>New Testament:</strong> Matthew–Revelation (books 40–66).</li>
+              <li><strong>Law:</strong> Genesis, Exodus, Leviticus, Numbers, Deuteronomy.</li>
+              <li><strong>History:</strong> Joshua, Judges, Ruth, 1 Samuel, 2 Samuel, 1 Kings, 2 Kings, 1 Chronicles, 2 Chronicles, Ezra, Nehemiah, Esther.</li>
+              <li><strong>Poetry:</strong> Job, Psalms, Proverbs, Ecclesiastes, Song of Solomon.</li>
+              <li><strong>Prophets:</strong> Isaiah, Jeremiah, Lamentations, Ezekiel, Daniel, Hosea, Joel, Amos, Obadiah, Jonah, Micah, Nahum, Habakkuk, Zephaniah, Haggai, Zechariah, Malachi.</li>
+              <li><strong>Gospels:</strong> Matthew, Mark, Luke, John.</li>
+              <li><strong>Epistles:</strong> Romans, 1 Corinthians, 2 Corinthians, Galatians, Ephesians, Philippians, Colossians, 1 Thessalonians, 2 Thessalonians, 1 Timothy, 2 Timothy, Titus, Philemon, Hebrews, James, 1 Peter, 2 Peter, 1 John, 2 John, 3 John, Jude.</li>
+            </ul>
+          </li>
+          <li><strong>Context window:</strong> include the selected number of surrounding verses. Overlapping ranges are combined.</li>
+          <li><strong>Case sensitive:</strong> match the capitalization in your search.</li>
+        </ul>
+        <p>Choose <strong>Reference</strong> to look up a reference directly. Enter a chapter (for example, <em>John 3</em>) to open it in reading mode; scroll up or down to load the previous or next chapter.</p>
+        <p>Choose <strong>Multi-reference</strong> to find references in pasted notes. This turns on <strong>Preserve notes</strong>, keeping the notes in their original order around the passages, including text after the last reference. Basic Markdown emphasis, inline code, and web links are displayed in notes; Copy retains the original Markdown.</p>
+
+        <h2>What is clickable?</h2>
+        <ul>
+          <li><strong>Verse references in search results:</strong> when <strong>Links</strong> is on, click a reference to open that verse or chapter in a new tab. Turn <strong>Links</strong> off to display references as plain text. The verse text itself is not a link.</li>
+          <li><strong>Search insights book bars:</strong> click a book to show only that book's results. Ctrl-click (Windows/Linux) or Cmd-click (Mac) to add or remove books from the selection. Click the only selected book again to clear the filter. This filters the results already loaded; it does not start a new search.</li>
+          <li><strong>Word clouds:</strong> click a word under “Other words in these verses” to search for that word. After a wildcard search, click a word form in “Wildcard word forms” to search for that exact form.</li>
+          <li><strong>Reading view:</strong> click a verse number to focus that verse. Use <strong>Load previous chapter</strong> and <strong>Load next chapter</strong> to continue reading.</li>
+          <li><strong>Web links in preserved notes:</strong> click a displayed link to open its web address.</li>
+        </ul>
+
+        <h2>Display and navigation</h2>
+        <ul>
+          <li><strong>Group:</strong> show results by individual verse or combine them into passages.</li>
+          <li><strong>Reference:</strong> choose Wikilink or Standard formatting and put the reference first or last.</li>
+          <li><strong>Red Letter, paragraphs, and Highlight Search:</strong> adjust verse styling and search-term highlighting.</li>
+          <li><strong>Links:</strong> show or hide links on Bible references.</li>
+          <li><strong>Newline Verse:</strong> in passage view, start each verse on a new line.</li>
+        </ul>
+        <p>Display options are available at the bottom of the search page.</p>
+
+        <h2>Copy and export</h2>
+        <p>Use <strong>Copy</strong> to copy the results. Choose a format and select <strong>Download</strong> to export as XLSX, Markdown, DOCX, TXT, or CSV.</p>
+
+        <h2>Project</h2>
+        <p>Download a Windows executable (EXE) to run the app on your computer, or download a server package to host it on your own server. Find both options on <a href="https://github.com/mhancock4Christ/MarkdownBible" target="_blank" rel="noopener noreferrer">GitHub</a>.</p>
+      </main>
+    </div>
+    <script>
+      const themeToggle = document.getElementById('themeToggle');
+      const isDark = document.body.classList.contains('dark');
+      themeToggle.setAttribute('aria-pressed', String(isDark));
+      themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
+      themeToggle.addEventListener('click', () => {
+        const nextTheme = document.body.classList.contains('dark') ? 'light' : 'dark';
+        localStorage.setItem('bibleapp-theme', nextTheme);
+        document.body.classList.toggle('dark', nextTheme === 'dark');
+        themeToggle.setAttribute('aria-pressed', String(nextTheme === 'dark'));
+        themeToggle.textContent = nextTheme === 'dark' ? 'Light mode' : 'Dark mode';
+      });
+    </script>
+  </body>
+</html>

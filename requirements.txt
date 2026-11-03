@@ -1,5 +1,0 @@
-fastapi
-pydantic
-python-docx
-openpyxl
-jinja2

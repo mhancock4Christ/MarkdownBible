@@ -1,1 +1,3 @@
-deploy_bibleapp.bat
+.local-scripts/
+book_order_leaderboard.json
+.book_order_leaderboard.*.tmp

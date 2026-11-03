@@ -7,7 +7,8 @@ from fastapi import HTTPException
 from openpyxl import Workbook
 from docx import Document
 
-from main import (
+from app.runtime_paths import DATABASE_PATH
+from app.main import (
     SearchRequest,
     compile_search_regexes,
     export_csv,
@@ -474,7 +475,7 @@ def test_apostrophe_queries_force_sqlite_fallback():
 
 
 def test_apostrophe_search_finds_literal_matches_in_sqlite_fallback():
-    conn = sqlite3.connect("kjv.sqlite")
+    conn = sqlite3.connect(DATABASE_PATH)
     cur = conn.cursor()
     rows_phrase = get_sqlite_text_rows(cur, "Peter's", [40, 43], "Phrase", False)
     rows_words = get_sqlite_text_rows(cur, "Peter's", [40, 43], "All Words", False)

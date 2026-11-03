@@ -1,5 +1,5 @@
-from main import BOOK_GROUPS, get_selected_book_numbers
-from main_Local import BOOK_GROUPS as LOCAL_BOOK_GROUPS
+from app.main import BOOK_GROUPS, get_selected_book_numbers
+from app.main_Local import BOOK_GROUPS as LOCAL_BOOK_GROUPS
 
 
 def test_book_groups_use_traditional_bible_divisions():

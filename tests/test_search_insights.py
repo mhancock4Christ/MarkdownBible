@@ -1,4 +1,4 @@
-from main import build_search_insights
+from app.main import build_search_insights
 
 
 def test_search_insights_count_context_words_and_matched_books():

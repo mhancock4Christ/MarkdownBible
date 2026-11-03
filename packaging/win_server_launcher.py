@@ -11,7 +11,13 @@ def main() -> None:
     if getattr(sys, "frozen", False):
         executable_dir = Path(sys.executable).resolve().parent
         app_files_dir = executable_dir / "app_files"
-        base_dir = app_files_dir if (app_files_dir / "main.py").is_file() else executable_dir
+        base_dir = (
+            app_files_dir
+            if (app_files_dir / "app" / "main.py").is_file()
+            else executable_dir
+        )
+        os.environ["MARKDOWN_BIBLE_RESOURCE_DIR"] = str(base_dir / "app")
+        os.environ["MARKDOWN_BIBLE_DATA_DIR"] = str(base_dir / "app" / "data")
     else:
         base_dir = Path(__file__).resolve().parents[1]
 
@@ -20,7 +26,7 @@ def main() -> None:
         sys.path.insert(0, str(base_dir))
 
     try:
-        import main as app_module
+        from app import main as app_module
     except Exception as exc:  # pragma: no cover
         print(f"Failed to import app module: {exc}")
         raise

@@ -7,16 +7,11 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 
 PACKAGE_PATHS = (
-    "main.py",
-    "kjv.sqlite",
-    "README.md",
-    "requirements.txt",
-    "icon.ico",
-    "icon.png",
-    "static",
-    "templates",
+    "app",
+    "config/requirements.txt",
+    "docs",
     "packaging",
-    "deploy_bibleapp.sh",
+    ".local-scripts/deploy_bibleapp.sh",
 )
 
 
@@ -40,7 +35,12 @@ def package_files(root_dir: Path) -> list[Path]:
 
 def main() -> None:
     root_dir = Path(__file__).resolve().parents[1]
-    default_output = root_dir / "dist" / "server-deployment" / "MarkdownBible-Server-Deployment.zip"
+    default_output = (
+        root_dir
+        / "dist"
+        / "MarkdownBible-Server"
+        / "MarkdownBible-Server-Deployment.zip"
+    )
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -58,10 +58,12 @@ def main() -> None:
         parser.error(str(exc))
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    archive_root = root_dir.name
+    archive_root = "MarkdownBible-Server"
     with ZipFile(output_path, "w", compression=ZIP_DEFLATED, compresslevel=9) as archive:
         for source in files:
             relative_path = source.relative_to(root_dir)
+            if relative_path == Path(".local-scripts/deploy_bibleapp.sh"):
+                relative_path = Path("scripts/deploy_bibleapp.sh")
             archive.write(source, Path(archive_root) / relative_path)
 
     print(f"Created server deployment package: {output_path}")
